@@ -349,6 +349,7 @@ private:
 
 	//SINGLE WINDOW
 	void ReadNewFBSize(rfbFramebufferUpdateRectHeader *pfburh);
+	void SendMonitorSizes();
 
 	// Caching
 	void SaveArea(RECT &r);
@@ -813,6 +814,7 @@ private:
 
 
 	jpeg_source_mgr m_jpegSrcManager;
+	bool desktopsize_requested;
 
 
 public:

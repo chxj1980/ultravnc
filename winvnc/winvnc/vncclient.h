@@ -498,6 +498,9 @@ protected:
 
 	//SINGLE WINDOW
 	BOOL			m_use_NewSWSize;
+	BOOL			m_use_ExtDesktopSize;
+	int m_requestedDesktopSizeChange;
+	int m_lastDesktopSizeChangeError;
 	BOOL			m_NewSWDesktop;
 	int				NewsizeW;
 	int				NewsizeH;

@@ -64,9 +64,9 @@ extern "C" {
 
 #define INITIALNETBUFSIZE 4096
 #ifdef _XZ
-#define MAX_ENCODINGS (LASTENCODING+66)
+#define MAX_ENCODINGS (LASTENCODING+67)
 #else
-#define MAX_ENCODINGS (LASTENCODING+51)
+#define MAX_ENCODINGS (LASTENCODING+52)
 #endif
 #define VWR_WND_CLASS_NAME _T("VNCviewer")
 #define VWR_WND_CLASS_NAME_VIEWER _T("VNCviewerwindow")
@@ -571,6 +571,7 @@ void ClientConnection::Init(VNCviewerApp *pApp)
 	sizing_set = false;
 
 	ultraVncZlib = new UltraVncZ();
+	desktopsize_requested = true;
 }
 
 // helper functions for setting socket timeouts during file transfer
@@ -4062,6 +4063,7 @@ void ClientConnection::SetFormatAndEncodings()
 	// Tight - LastRect - SINGLE WINDOW
 	encs[se->nEncodings++] = Swap32IfLE(rfbEncodingLastRect);
 	encs[se->nEncodings++] = Swap32IfLE(rfbEncodingNewFBSize);
+	encs[se->nEncodings++] = Swap32IfLE(rfbEncodingExtDesktopSize);
 
 	// Modif sf@2002
 	if (m_opts.m_fEnableCache)
@@ -5568,6 +5570,18 @@ inline void ClientConnection::ReadScreenUpdate()
 			break;
 		}
 
+		if (surh.encoding == rfbEncodingExtDesktopSize)
+		{
+			rfbExtDesktopSizeMsg edsHdr;
+			ReadExact((char*)&edsHdr, sz_rfbExtDesktopSizeMsg);
+			rfbExtDesktopScreen eds;
+			for (int i = 0; i < edsHdr.numberOfScreens; i++) {
+				ReadExact((char*)&eds, sz_rfbExtDesktopScreen);
+			}
+			SendMonitorSizes();
+			break;
+		}
+
 		// Tight cursor handling
 		if ( surh.encoding == rfbEncodingXCursor ||
 			surh.encoding == rfbEncodingRichCursor )
@@ -6934,6 +6948,32 @@ void ClientConnection::ReadNewFBSize(rfbFramebufferUpdateRectHeader *pfburh)
 	SizeWindow();
 	InvalidateRect(m_hwndcn, NULL, TRUE);
 	RealiseFullScreenMode();
+}
+
+void ClientConnection::SendMonitorSizes()
+{
+	rfbSetDesktopSizeMsg sdmz;
+	tempdisplayclass tdc;
+	if (desktopsize_requested) {		
+		tdc.Init();
+		sdmz.numberOfScreens = tdc.nr_monitors;
+		sdmz.height = tdc.monarray[0].height;
+		sdmz.width = tdc.monarray[0].width;
+		sdmz.type = rfbSetDesktopSize;
+		WriteExact((char*)&sdmz, sz_rfbSetDesktopSizeMsg);
+		for (int i = 1; i < tdc.nr_monitors +1; i++) {
+			rfbExtDesktopScreen eds;
+			eds.id = Swap32IfLE(1);
+			eds.x = Swap16IfLE(0);
+			eds.y = Swap16IfLE(0);
+			eds.width = Swap16IfLE(tdc.monarray[i].width);
+			eds.height = Swap16IfLE(tdc.monarray[i].height);
+			eds.flags = Swap32IfLE(0);
+			WriteExact((char*)&eds, sz_rfbExtDesktopScreen);
+		}
+		desktopsize_requested = false;
+	}
+	
 }
 
 //
