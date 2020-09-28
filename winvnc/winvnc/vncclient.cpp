@@ -80,6 +80,7 @@
 #include "vncOSVersion.h"
 #include "common/win32_helpers.h"
 #include "uvncUiAccess.h"
+#include "VirtualDisplay.h"
 
 #pragma comment(lib, "mpr.lib") //for getting full mapped drive
 
@@ -324,41 +325,6 @@ void vncClient::FTDeleteHook(std::string name, bool isDir)
 void vncClient::FTRenameHook(std::string oldName, std::string newname)
 {
 }
-
-
-
-class vncClientUpdateThread : public omni_thread
-{
-public:
-
-	// Init
-	BOOL Init(vncClient *client);
-
-	// Kick the thread to send an update
-	void Trigger();
-
-	// Kill the thread
-	void Kill();
-
-	// Disable/enable updates
-	void EnableUpdates(BOOL enable);
-
-	void get_time_now(unsigned long* abs_sec, unsigned long* abs_nsec);
-
-	// The main thread function
-    virtual void *run_undetached(void *arg);
-
-protected:
-	virtual ~vncClientUpdateThread();
-
-	// Fields
-protected:
-	vncClient *m_client;
-	omni_condition *m_signal;
-	omni_condition *m_sync_sig;
-	BOOL m_active;
-	BOOL m_enable;
-};
 
 
 BOOL
@@ -2258,7 +2224,22 @@ vncClientThread::run(void *arg)
 	if (!InitAuthenticate())
 	{
 		m_server->RemoveClient(m_client->GetClientId());
-		goto testautoreconnect;
+		if (!fShutdownOrdered) {
+			if (m_client->m_Autoreconnect)
+			{
+				vnclog.Print(LL_INTERR, VNCLOG("PostAddNewClient II\n"));
+				m_server->AutoReconnect(m_client->m_Autoreconnect);
+				m_server->AutoReconnectPort(m_AutoReconnectPort);
+				m_server->AutoReconnectAdr(m_szAutoReconnectAdr);
+				m_server->AutoReconnectId(m_szAutoReconnectId);
+#ifdef IPV6V4
+				vncService::PostAddNewClient4(1111, 1111);
+#else
+				vncService::PostAddNewClient(1111, 1111);
+#endif
+			}
+		}
+		return;
 	}
 
 	// Authenticated OK - remove from blacklist and remove timeout
@@ -2276,10 +2257,10 @@ vncClientThread::run(void *arg)
 
 	// Modif sf@2002 - Scaling
 	if (m_server->AreThereMultipleViewers()==false)
-		{
-			omni_mutex_lock l(m_client->GetUpdateLock(),84);
-			m_client->m_encodemgr.m_buffer->SetScale(m_server->GetDefaultScale()); // v1.1.2
-		}
+	{
+		omni_mutex_lock l(m_client->GetUpdateLock(),84);
+		m_client->m_encodemgr.m_buffer->SetScale(m_server->GetDefaultScale()); // v1.1.2
+	}
 	else
 	{
 		m_client->SetScreenOffset(m_server->m_desktop->m_ScreenOffsetx, m_server->m_desktop->m_ScreenOffsety, m_server->m_desktop->nr_monitors);
@@ -2391,6 +2372,8 @@ vncClientThread::run(void *arg)
 	bool need_notify_extended_clipboard = false;
 	// adzm 2010-09 - Notify streaming DSM plugin support
 	bool need_notify_streaming_DSM = false;
+
+	VirtualDisplay virtalDisplay;
 
 	while (m_client->cl_connected)
 	{
@@ -2616,7 +2599,11 @@ vncClientThread::run(void *arg)
 					}
 
 					if (Swap32IfLE(encoding) == rfbEncodingExtDesktopSize) {
-						m_client->m_use_ExtDesktopSize = TRUE;
+						// only allow desktop resize when to the first client
+						if (m_server->AreThereMultipleViewers() == false)
+							m_client->m_use_ExtDesktopSize = m_server->m_virtualDisplay;
+						else
+							m_client->m_use_ExtDesktopSize = false;
 						continue;
 					}
 
@@ -4405,7 +4392,6 @@ vncClientThread::run(void *arg)
 		//needed to give autoreconnect (max 100) to quit
 		Sleep(200);
 	}
-	
 
     if (m_client->m_fFileDownloadRunning)
     {
@@ -4483,8 +4469,6 @@ vncClientThread::run(void *arg)
 	// updates
 	m_server->RemoveClient(m_client->GetClientId());
 
-	// sf@2003 - AutoReconnection attempt if required
-	testautoreconnect:
 	if (!fShutdownOrdered) {
 		if (m_client->m_Autoreconnect)
 		{

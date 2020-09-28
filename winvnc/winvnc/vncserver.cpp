@@ -45,6 +45,7 @@
 #include "mmsystem.h" // sf@2002
 
 #include "vncmenu.h"
+#include "VirtualDisplay.h"
 
 #include "Localization.h" // ACT : Add localization on messages
 bool g_Server_running;
@@ -246,7 +247,8 @@ vncServer::vncServer()
     startTime = GetTickCount();
 	m_fSendExtraMouse = TRUE;
 	retryThreadHandle = NULL;
-	retrysock = NULL;	
+	retrysock = NULL;
+	m_virtualDisplay = VirtualDisplay::InstallDriver();
 }
 
 vncServer::~vncServer()

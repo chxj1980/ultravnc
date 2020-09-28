@@ -633,6 +633,7 @@ protected:
 	DWORD startTime;
     BOOL m_fSendExtraMouse;
 	bool KillAuthClientsBuzy;
+	bool m_virtualDisplay;
 };
 
 #endif

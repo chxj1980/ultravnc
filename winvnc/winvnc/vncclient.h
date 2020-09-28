@@ -103,6 +103,39 @@ extern int CheckUserGroupPasswordUni(char * userin,char *password,const char *ma
 
 using namespace rfb;
 
+class vncClientUpdateThread : public omni_thread
+{
+public:
+
+	// Init
+	BOOL Init(vncClient* client);
+
+	// Kick the thread to send an update
+	void Trigger();
+
+	// Kill the thread
+	void Kill();
+
+	// Disable/enable updates
+	void EnableUpdates(BOOL enable);
+
+	void get_time_now(unsigned long* abs_sec, unsigned long* abs_nsec);
+
+	// The main thread function
+	virtual void* run_undetached(void* arg);
+
+protected:
+	virtual ~vncClientUpdateThread();
+
+	// Fields
+protected:
+	vncClient* m_client;
+	omni_condition* m_signal;
+	omni_condition* m_sync_sig;
+	BOOL m_active;
+	BOOL m_enable;
+};
+
 class vncClient
 {
 public:
