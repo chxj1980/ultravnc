@@ -67,6 +67,7 @@ VirtualDisplay::VirtualDisplay()
 			DISPLAYINFO di;
 			di.dm = dm;
 			di.naam = dd.DeviceName;
+			di.primary = dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE;
 			diplayInfoList.push_back(di);
 		}
 		ZeroMemory(&dd, sizeof(dd));
@@ -105,8 +106,14 @@ VirtualDisplay::~VirtualDisplay()
 			CloseHandle((*virtualDisplayIter).hEvent);
 		virtualDisplayIter++;
 	}
+}
+
+void VirtualDisplay::changeMonitors(int flag , map< pair<int, int>, pair<int, int> >resolutionMap)
+{
 
 }
+
+
 
 void VirtualDisplay::SetVirtualMonitorsSize(int height, int width)
 {
@@ -213,7 +220,7 @@ BOOL GetVersion2(OSVERSIONINFOEX* os) {
 bool VirtualDisplay::InstallDriver()
 {
 	OSVERSIONINFOEX os;
-	if (GetVersion2(&os) == TRUE && os.dwMajorVersion == 10 && os.dwBuildNumber >= 18632) {
+	if (GetVersion2(&os) == TRUE && os.dwMajorVersion == 10 && os.dwBuildNumber >= 18362) {
 		CHAR szdriverPath[MAX_PATH];
 		if (GetModuleFileName(NULL, szdriverPath, MAX_PATH)) {
 			char* p = strrchr(szdriverPath, '\\');

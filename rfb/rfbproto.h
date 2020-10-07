@@ -1211,6 +1211,11 @@ typedef struct rfbExtDesktopScreen {
     CARD32 flags;
 } rfbExtDesktopScreen;
 
+/*ultravnc flags
+0 = normal
+1 = virtual
+2 = extend virtual*/
+
 #define sz_rfbExtDesktopSizeMsg (4)
 #define sz_rfbExtDesktopScreen (16)
 

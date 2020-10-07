@@ -568,7 +568,6 @@ void ClientConnection::Init(VNCviewerApp *pApp)
 	mytouch = new vnctouch;
 	mytouch->Set_ClientConnect(this);
 #endif
-	sizing_set = false;
 
 	ultraVncZlib = new UltraVncZ();
 	desktopsize_requested = true;
@@ -3648,17 +3647,11 @@ void ClientConnection::SizeWindow(bool reconnect)
 	RECT workrect;
 	tempdisplayclass tdc;
 	tdc.Init();
-	if (sizing_set) {
-		int mon = tdc.getSelectedScreen(m_hwndMain);
-		if (mon != 0 && m_opts.m_selected_screen != 0) // Thomas Levering
-			m_opts.m_selected_screen = mon;
-	}
-
-	workrect.left=tdc.monarray[m_opts.m_selected_screen].wl;
-	workrect.right=tdc.monarray[m_opts.m_selected_screen].wr;
-	workrect.top=tdc.monarray[m_opts.m_selected_screen].wt;
-	workrect.bottom=tdc.monarray[m_opts.m_selected_screen].wb;
-	sizing_set = true;
+	int mon = tdc.getSelectedScreen(m_hwndMain, m_opts.m_allowMonitorSpanning);	
+	workrect.left=tdc.monarray[mon].wl;
+	workrect.right=tdc.monarray[mon].wr;
+	workrect.top=tdc.monarray[mon].wt;
+	workrect.bottom=tdc.monarray[mon].wb;
 	//SystemParametersInfo(SPI_GETWORKAREA, 0, &workrect, 0);
 	int workwidth = workrect.right -  workrect.left;
 	int workheight = workrect.bottom - workrect.top;
@@ -3808,7 +3801,7 @@ void ClientConnection::SizeWindow(bool reconnect)
     //called by SetWindowPos
     int act_width = m_winwidth;
     int act_height = m_winheight;
-	if (m_opts.m_selected_screen==0 && (m_fullwinwidth <= bb )) //fit on primary
+	if (m_opts.m_allowMonitorSpanning == true && (m_fullwinwidth <= bb )) //fit on primary
 		// -20 for border
 	{
 		if (pos_set == false) SetWindowPos(m_hwndMain, HWND_TOP,tdc.monarray[1].wl + ((tdc.monarray[1].wr-tdc.monarray[1].wl)-m_winwidth) / 2,tdc.monarray[1].wt +
@@ -6951,27 +6944,54 @@ void ClientConnection::ReadNewFBSize(rfbFramebufferUpdateRectHeader *pfburh)
 }
 
 void ClientConnection::SendMonitorSizes()
-{
+{	
+	if (!m_opts.m_ChangeServerRes)
+		return;
+
+	int flag = 0;
+	if (m_opts.m_use_virt)
+		flag = 1;
+	if (m_opts.m_extendDisplay)
+		flag = 2;
+	
 	rfbSetDesktopSizeMsg sdmz;
 	tempdisplayclass tdc;
-	if (desktopsize_requested) {		
+	if (desktopsize_requested) {	
+		desktopsize_requested = false;
 		tdc.Init();
-		sdmz.numberOfScreens = tdc.nr_monitors;
-		sdmz.height = tdc.monarray[0].height;
-		sdmz.width = tdc.monarray[0].width;
-		sdmz.type = rfbSetDesktopSize;
-		WriteExact((char*)&sdmz, sz_rfbSetDesktopSizeMsg);
-		for (int i = 1; i < tdc.nr_monitors +1; i++) {
+		if (m_opts.m_use_allmonitors) {
+			sdmz.numberOfScreens = tdc.nr_monitors;
+			sdmz.height = tdc.monarray[0].height;
+			sdmz.width = tdc.monarray[0].width;
+			sdmz.type = rfbSetDesktopSize;
+			WriteExact((char*)&sdmz, sz_rfbSetDesktopSizeMsg);
+			for (int i = 1; i < tdc.nr_monitors + 1; i++) {
+				rfbExtDesktopScreen eds;
+				eds.id = Swap32IfLE(1);
+				eds.x = Swap16IfLE(tdc.monarray[i].offsetx);
+				eds.y = Swap16IfLE(tdc.monarray[i].offsety);
+				eds.width = Swap16IfLE(tdc.monarray[i].width);
+				eds.height = Swap16IfLE(tdc.monarray[i].height);
+				eds.flags = Swap32IfLE(flag);
+				WriteExact((char*)&eds, sz_rfbExtDesktopScreen);
+			}
+		}
+		else {
+			sdmz.numberOfScreens = 1;
+			sdmz.height = tdc.monarray[0].height;
+			sdmz.width = tdc.monarray[0].width;
+			sdmz.type = rfbSetDesktopSize;
+			WriteExact((char*)&sdmz, sz_rfbSetDesktopSizeMsg);
 			rfbExtDesktopScreen eds;
 			eds.id = Swap32IfLE(1);
 			eds.x = Swap16IfLE(0);
 			eds.y = Swap16IfLE(0);
-			eds.width = Swap16IfLE(tdc.monarray[i].width);
-			eds.height = Swap16IfLE(tdc.monarray[i].height);
-			eds.flags = Swap32IfLE(0);
+			eds.width = Swap16IfLE(m_opts.m_requestedWidth);
+			eds.height = Swap16IfLE(m_opts.m_requestedHeight);
+			eds.flags = Swap32IfLE(flag);
 			WriteExact((char*)&eds, sz_rfbExtDesktopScreen);
-		}
-		desktopsize_requested = false;
+
+		}		
 	}
 	
 }

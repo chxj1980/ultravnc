@@ -28,6 +28,7 @@
 #include "vncviewer.h"
 #include "ClientConnection.h"
 #include "FullScreenTitleBar.h" //Added by: Lars Werner (http://lars.werner.no)
+#include "display.h"
 
 // Parameters for scrolling in full screen mode
 #define BUMPSCROLLBORDER 8
@@ -114,6 +115,18 @@ void ClientConnection::RealiseFullScreenMode()
         int y = mi.rcMonitor.top;
 		int cx = mi.rcMonitor.right - x; 
 		int cy = mi.rcMonitor.bottom - y;
+
+		// when the remote size is bigger then 1,5 time the localscreen we use all monitors in
+		// fullscreen mode
+		if (m_si.framebufferWidth > cx * 1.5 || m_si.framebufferHeight > cy * 1.5) {
+			tempdisplayclass tdc;
+			tdc.Init();
+			x = 0;
+			y = 0;
+			cy = tdc.monarray[0].height;
+			cx = tdc.monarray[0].width;
+		}
+
 		SetWindowPos(m_hwndMain, HWND_TOPMOST, x, y, cx+3, cy+3, SWP_FRAMECHANGED);
         TitleBar.MoveToMonitor(hMonitor);
 		// adzm - 2010-07 - Extended clipboard

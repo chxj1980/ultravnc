@@ -143,7 +143,6 @@ tempdisplayclass::checkmonitors()
 tempdisplayclass::tempdisplayclass()
 {
   nr_monitors=0;
-  selected_monitor=1;
   Init();
 }
 
@@ -159,8 +158,10 @@ tempdisplayclass::Init()
 	checkmonitors();
 }
 
-int tempdisplayclass::getSelectedScreen(HWND hwnd)
+int tempdisplayclass::getSelectedScreen(HWND hwnd, bool  allowMonitorSpanning)
 {
+	if (allowMonitorSpanning)
+		return 0;
 	HMONITOR hm = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
 	for (int i = 0; i <= nr_monitors; i ++) {
 		if (monarray[i].hm == hm)

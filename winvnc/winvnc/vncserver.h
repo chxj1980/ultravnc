@@ -470,6 +470,7 @@ public:
 
 	bool OS_Shutdown;
 	void StopReconnectAll();
+	int m_virtualDisplaySupported;
 
 protected:
 	// The vncServer UpdateTracker class
@@ -632,8 +633,7 @@ protected:
 	bool clearconsole;
 	DWORD startTime;
     BOOL m_fSendExtraMouse;
-	bool KillAuthClientsBuzy;
-	bool m_virtualDisplay;
+	bool KillAuthClientsBuzy;	
 };
 
 #endif

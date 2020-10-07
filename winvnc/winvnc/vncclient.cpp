@@ -81,6 +81,8 @@
 #include "common/win32_helpers.h"
 #include "uvncUiAccess.h"
 #include "VirtualDisplay.h"
+#include<map>
+using namespace std;
 
 #pragma comment(lib, "mpr.lib") //for getting full mapped drive
 
@@ -2307,6 +2309,8 @@ vncClientThread::run(void *arg)
 	strcat_s(desktopname, " - ");
 	if (vncService::RunningAsService()) strcat_s(desktopname, "service mode");
 	else strcat_s(desktopname, "application mode");
+	if (m_server->m_virtualDisplaySupported)
+		strcat_s(desktopname, " - Virtual monitor(s) supported");
 
 	// Send the server format message to the client
 	rfbServerInitMsg server_ini;
@@ -2601,7 +2605,7 @@ vncClientThread::run(void *arg)
 					if (Swap32IfLE(encoding) == rfbEncodingExtDesktopSize) {
 						// only allow desktop resize when to the first client
 						if (m_server->AreThereMultipleViewers() == false)
-							m_client->m_use_ExtDesktopSize = m_server->m_virtualDisplay;
+							m_client->m_use_ExtDesktopSize = true;
 						else
 							m_client->m_use_ExtDesktopSize = false;
 						continue;
@@ -3601,31 +3605,36 @@ vncClientThread::run(void *arg)
 			break;
 
 		case rfbSetDesktopSize:
-			if (!m_socket->ReadExact(((char*)&msg) + nTO, sz_rfbSetDesktopSizeMsg - nTO))
-			{
-				m_client->cl_connected = FALSE;
-				break;
-			}
-			for (int i = 0; i < msg.sdm.numberOfScreens; i++)
-			{
-				rfbExtDesktopScreen eds;
-				if (!m_socket->ReadExact(((char*)&eds), sz_rfbExtDesktopScreen)) {
+			if (!m_socket->ReadExact(((char*)&msg) + nTO, sz_rfbSetDesktopSizeMsg - nTO)) {
 					m_client->cl_connected = FALSE;
 					break;
-				}
-				int id = Swap32IfLE(eds.id);
-				int x = Swap16IfLE(eds.x);
-				int y = Swap16IfLE(eds.y);
-				int w = Swap16IfLE(eds.width);
-				int h = Swap16IfLE(eds.height);
-				int flag = Swap32IfLE(eds.flags);
-#ifdef _DEBUG
-				char			szText[256];
-				sprintf_s(szText, "++++++++++++++++++++++++++++++ DesktopScreen %i %i %i %i \n", x, y, w, h);
-				OutputDebugString(szText);
-#endif
 			}
-
+			{
+				map< pair<int, int>, pair<int, int> > resolutionMap;
+				int flag = 0;
+				for (int i = 0; i < msg.sdm.numberOfScreens; i++) {
+					rfbExtDesktopScreen eds;
+					if (!m_socket->ReadExact(((char*)&eds), sz_rfbExtDesktopScreen)) {
+						m_client->cl_connected = FALSE;
+						break;
+					}
+					int id = Swap32IfLE(eds.id);
+					int x = Swap16IfLE(eds.x);
+					int y = Swap16IfLE(eds.y);
+					int w = Swap16IfLE(eds.width);
+					int h = Swap16IfLE(eds.height);
+					flag = Swap32IfLE(eds.flags);
+#ifdef _DEBUG
+					char			szText[256];
+					sprintf_s(szText, "++++++++++++++++++++++++++++++ DesktopScreen %i %i %i %i \n", x, y, w, h);
+					OutputDebugString(szText);
+#endif				
+					resolutionMap.insert(make_pair(make_pair(x, y), make_pair(w, h)));
+				}
+				if (!m_server->m_virtualDisplaySupported)
+					flag = 0;
+				virtalDisplay.changeMonitors(flag, resolutionMap);
+			}
 			break;
 		// Set Single Window
 		case rfbSetSW:
@@ -5132,7 +5141,7 @@ vncClient::SendUpdate(rfb::SimpleUpdateTracker &update)
 			hdr.encoding = Swap32IfLE(rfbEncodingExtDesktopSize);
 			hdr.r.w = Swap16IfLE(NewsizeW * m_nScale_viewer / m_nScale);
 			hdr.r.h = Swap16IfLE(NewsizeH * m_nScale_viewer / m_nScale);
-			hdr.r.x = Swap16IfLE(m_requestedDesktopSizeChange);
+			hdr.r.x = Swap16IfLE(m_server->m_virtualDisplaySupported);
 			hdr.r.y = Swap16IfLE(m_lastDesktopSizeChangeError);
 			edsHdr.numberOfScreens = 1;
 			edsHdr.pad[0] = edsHdr.pad[1] = edsHdr.pad[2] = 0;

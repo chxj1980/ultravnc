@@ -248,7 +248,7 @@ vncServer::vncServer()
 	m_fSendExtraMouse = TRUE;
 	retryThreadHandle = NULL;
 	retrysock = NULL;
-	m_virtualDisplay = VirtualDisplay::InstallDriver();
+	m_virtualDisplaySupported = VirtualDisplay::InstallDriver();
 }
 
 vncServer::~vncServer()

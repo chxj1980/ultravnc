@@ -6,6 +6,8 @@
 #include <list>
 #include <swdevice.h>
 #include <aclapi.h>
+#include<map>
+using namespace std;
 
 const static LPCSTR g_szIPC = ("Global\\{4A77E11C-B0B4-40F9-AA8B-D249116A76FE}");
 
@@ -20,6 +22,7 @@ typedef struct _DISPLAYINFO
 {
 	DEVMODE dm;
 	CHAR* naam;
+	bool primary;
 }DISPLAYINFO;
 
 typedef struct _VIRTUALDISPLAY
@@ -45,5 +48,6 @@ public:
 	void AddVirtualMonitors();
 	bool AddVirtualDisplay(HSWDEVICE& hSwDevice, HANDLE& hEvent, WCHAR* name);
 	static bool InstallDriver();
+	void changeMonitors(int flag, map< pair<int, int>, pair<int, int> >resolutionMap);
 };
 
