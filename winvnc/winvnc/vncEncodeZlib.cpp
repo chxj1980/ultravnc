@@ -163,7 +163,11 @@ inline UINT vncEncodeZlib::EncodeOneRect(BYTE *source, BYTE *dest, const RECT &r
 	surh->r.y = Swap16IfLE(surh->r.y);
 	surh->r.w = Swap16IfLE(surh->r.w);
 	surh->r.h = Swap16IfLE(surh->r.h);
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	surh->encoding = Swap32IfLE(rfbEncodingZlib);
+#else
 	surh->encoding = Swap32IfLE(m_use_zstd ? rfbEncodingZstd : rfbEncodingZlib);
+#endif
 	dataSize += ( rectW * rectH * m_remoteformat.bitsPerPixel) / 8;
 	rectangleOverhead += sz_rfbFramebufferUpdateRectHeader;	
 	// create a space big enough for the Zlib encoded pixels
@@ -190,7 +194,11 @@ inline UINT vncEncodeZlib::EncodeOneRect(BYTE *source, BYTE *dest, const RECT &r
 		AddToQueu(dest, sz_rfbFramebufferUpdateRectHeader + rawDataSize, outConn, 1);
 		return 0;
 	}
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	surh->encoding = Swap32IfLE(rfbEncodingZlib);
+#else
 	surh->encoding = Swap32IfLE(m_use_zstd ? rfbEncodingZstd : rfbEncodingZlib);
+#endif
 	totalCompDataLen = ultraVncZ->compress(m_compresslevel, avail_in, maxCompSize, m_buffer, (dest + sz_rfbFramebufferUpdateRectHeader + sz_rfbZlibHeader));
 	if (totalCompDataLen == 0)
 		return vncEncoder::EncodeRect(source, dest, rect);	
@@ -245,7 +253,11 @@ void vncEncodeZlib::SendZlibrects(VSocket *outConn)
 	CacheRectsHeader.r.y = Swap16IfLE(CacheRectsHeader.r.y);
 	CacheRectsHeader.r.w = Swap16IfLE(CacheRectsHeader.r.w);
  	CacheRectsHeader.r.h = 0;
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	CacheRectsHeader.encoding = Swap32IfLE(rfbEncodingQueueZip);
+#else
 	CacheRectsHeader.encoding = Swap32IfLE(m_use_zstd ? rfbEncodingQueueZstd :rfbEncodingQueueZip);
+#endif
 	// Format the ZlibHeader
 	rfbZlibHeader CacheZipHeader;
 	CacheZipHeader.nBytes = Swap32IfLE(maxCompSize);

@@ -9,14 +9,18 @@ UltraVncZ::UltraVncZ()
 	decompStreamInitedZlib = false;
 	compStreamInitedZstd = false;
 	decompStreamInitedZstd = false;
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	use_zstd = false;
+#endif
 }
 void UltraVncZ::set_use_zstd(bool use_zstd)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	this->use_zstd = use_zstd;
 	if (use_zstd)
 		MAX_SIZE = ZSTD_CStreamInSize();
 	else
+#endif
 		MAX_SIZE = 8192;
 }
 
@@ -26,6 +30,7 @@ UltraVncZ::~UltraVncZ()
 		deflateEnd(&compStream);
 	if (decompStreamInitedZlib)
 		inflateEnd(&decompStream);
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (compStreamInitedZstd) {
 		ZSTD_freeCStream(cstream);
 		free(outBufferC);
@@ -36,16 +41,19 @@ UltraVncZ::~UltraVncZ()
 		free(outBufferD);
 		free(inBufferD);
 	}
+#endif
 }
 
 void UltraVncZ::endInflateStream(bool zstd)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (zstd && compStreamInitedZstd) {
 		ZSTD_freeCStream(cstream);
 		free(outBufferC);
 		free(inBufferC);
 		compStreamInitedZstd = false;
 	}
+#endif
 
 	if (!zstd && decompStreamInitedZlib) {
 		inflateEnd(&decompStream);
@@ -56,9 +64,11 @@ void UltraVncZ::endInflateStream(bool zstd)
 
 UINT UltraVncZ::compress(int compresslevel, UINT avail_in, UINT avail_out, BYTE * next_in, BYTE *next_out)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (use_zstd)
 		return compressZstd(compresslevel, avail_in, avail_out, next_in, next_out);
 	else
+#endif
 		return compressZlib(compresslevel, avail_in, avail_out, next_in, next_out);
 }
 
@@ -95,6 +105,7 @@ UINT UltraVncZ::compressZlib (int compresslevel, UINT avail_in, UINT avail_out, 
 	return compStream.total_out - previousTotalOut;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 UINT UltraVncZ::compressZstd(int compresslevel, UINT avail_in, UINT avail_out, BYTE * next_in, BYTE *next_out)
 {
 	compresslevel = compresslevel - 7;
@@ -128,12 +139,15 @@ UINT UltraVncZ::compressZstd(int compresslevel, UINT avail_in, UINT avail_out, B
 		return 0;
 	return outBufferC->pos;
 }
+#endif
 
 int UltraVncZ::decompress(UINT &avail_in, UINT &avail_out, BYTE * next_in, BYTE *next_out, bool zstd)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (zstd)
 		return decompressZstd(avail_in, avail_out, next_in, next_out);
 	else
+#endif
 		return decompressZlib(avail_in, avail_out, next_in, next_out);
 }
 
@@ -166,6 +180,7 @@ int UltraVncZ::decompressZlib(UINT &avail_in, UINT &avail_out, BYTE * next_in, B
 	return result;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 int UltraVncZ::decompressZstd(UINT &avail_in, UINT &avail_out, BYTE * next_in, BYTE *next_out)
 {
 	unsigned int rc = 0;
@@ -194,6 +209,7 @@ int UltraVncZ::decompressZstd(UINT &avail_in, UINT &avail_out, BYTE * next_in, B
 	else
 		return Z_ERRNO;
 }
+#endif
 
 UINT UltraVncZ::maxSize(UINT size)
 {	
@@ -202,9 +218,11 @@ UINT UltraVncZ::maxSize(UINT size)
 
 UINT UltraVncZ::minSize()
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (use_zstd)
 		return 1000;
 	else
+#endif
 		return 25;
 }
 

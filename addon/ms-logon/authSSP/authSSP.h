@@ -50,10 +50,7 @@ BOOL CUPSD2(const char * domainuser,
 
 BOOL WINAPI SSPLogonUser(LPTSTR szDomain, 
 						 LPTSTR szUser, 
-						 LPTSTR szPassword, 
-						 PSECURITY_DESCRIPTOR psdSD, 
-						 PBOOL isAuthenticated,
-						 PDWORD pdwAccessGranted);
+						 LPTSTR szPassword);
 
 BOOL ImpersonateAndCheckAccess(PCtxtHandle phContext, 
 							   PSECURITY_DESCRIPTOR psdSD, 

@@ -545,7 +545,11 @@ vncEncodeTight::SendTightHeader(int x, int y, int w, int h)
 	rect.r.y = Swap16IfLE(y-monitor_Offsety);
 	rect.r.w = Swap16IfLE(w);
 	rect.r.h = Swap16IfLE(h);
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	rect.encoding = Swap32IfLE(rfbEncodingTight);
+#else
 	rect.encoding = Swap32IfLE(m_use_zstd ? rfbEncodingTightZstd : rfbEncodingTight);
+#endif
 
 	dataSize += w * h * (m_remoteformat.bitsPerPixel / 8);
 	rectangleOverhead += sz_rfbFramebufferUpdateRectHeader;

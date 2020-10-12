@@ -44,7 +44,9 @@ class vncServer;
 
 // Custom
 #include "vncsockconnect.h"
+#ifdef HTTP_SUPPORT
 #include "vnchttpconnect.h"
+#endif
 #include "vncclient.h"
 #include "rfbRegion.h"
 #include "vncpasswd.h"
@@ -103,7 +105,9 @@ public:
 	virtual BOOL Authenticated(vncClientId client);
 	virtual void KillClient(vncClientId client);
 	virtual void KillClient(LPSTR szClientName); // sf@2002
+#ifdef TEXT_CHAT_SUPPORT
 	virtual void TextChatClient(LPSTR szClientName); // sf@2002
+#endif
 	bool IsUltraVNCViewer();
 	bool AreThereMultipleViewers();
 
@@ -176,9 +180,11 @@ public:
 	// Update handling, used by the screen server
 	virtual rfb::UpdateTracker &GetUpdateTracker() {return m_update_tracker;};
 	virtual void UpdateMouse();
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 	// adzm - 2010-07 - Extended clipboard
 	//virtual void UpdateClipText(const char* text);
 	virtual void UpdateClipTextEx(HWND hwndOwner, vncClient* excludeClient = NULL);
+#endif
 	virtual void UpdatePalette(bool lock);
 	virtual void UpdateLocalFormat(bool lock);
 
@@ -190,6 +196,8 @@ public:
 	virtual void PollFullScreen(BOOL enable) {m_poll_fullscreen = enable;};
 	virtual BOOL PollFullScreen() {return m_poll_fullscreen;};
 
+	virtual void DeskDupEngine(BOOL enable);
+	virtual BOOL DeskDupEngine() {return m_deskDupEngine;};
 	virtual void Driver(BOOL enable);
 	virtual BOOL Driver() {return m_driver;};
 	virtual void Hook(BOOL enable);
@@ -207,15 +215,19 @@ public:
 
 	// Client manipulation of the clipboard
 	virtual void UpdateLocalClipText(LPSTR text);
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 	// adzm - 2010-07 - Extended clipboard
 	virtual void UpdateLocalClipTextEx(ExtendedClipboardDataMessage& extendedClipboardDataMessage, vncClient* sourceClient);
+#endif
 
 	// Name and port number handling
 	// TightVNC 1.2.7
 	virtual void SetName(const char * name);
 	virtual void SetPorts(const UINT port_rfb, const UINT port_http);
 	virtual UINT GetPort() { return m_port; };
+#ifdef HTTP_SUPPORT
 	virtual UINT GetHttpPort() { return m_port_http; };
+#endif
 	// RealVNC method
 	/*
 	virtual void SetPort(const UINT port);
@@ -284,9 +296,11 @@ public:
 	virtual BOOL GetAllowEditClients();
 
 
+#ifdef HTTP_SUPPORT
 	// HTTP daemon handling
 	virtual BOOL EnableHTTPConnect(BOOL enable);
 	virtual BOOL HTTPConnectEnabled() {return m_enableHttpConn;};
+#endif
 
 
 
@@ -384,6 +398,7 @@ public:
 	virtual BOOL Secondary() {return m_SecondaryEnabled;};
 	virtual void Secondary(BOOL fEnable) {m_SecondaryEnabled = fEnable;};
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSM Plugin
 	virtual BOOL IsDSMPluginEnabled();
 	virtual void EnableDSMPlugin(BOOL fEnable);
@@ -394,6 +409,7 @@ public:
 	//adzm 2010-05-12 - dsmplugin config
 	virtual void SetDSMPluginConfig(char* szDSMPluginConfig);
 	virtual char* GetDSMPluginConfig() { return m_szDSMPluginConfig;};
+#endif
 
 	// sf@2002 - Cursor handling
 	virtual void EnableXRichCursor(BOOL fEnable);
@@ -432,7 +448,11 @@ public:
 
 	// sf@2007 - Vista / XP FUS special modes
 	virtual BOOL RunningFromExternalService(){return m_fRunningFromExternalService;};
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	virtual void RunningFromExternalService(BOOL fEnabled){m_fRunningFromExternalService = true;};
+#else
 	virtual void RunningFromExternalService(BOOL fEnabled){m_fRunningFromExternalService = fEnabled;};
+#endif
 
 	virtual BOOL RunningFromExternalServiceRdp(){return m_fRunningFromExternalServiceRdp;};
 	virtual void RunningFromExternalServiceRdp(BOOL fEnabled){m_fRunningFromExternalServiceRdp = fEnabled;};
@@ -449,15 +469,20 @@ public:
 
 	bool IsClient(vncClient* pClient);
 
+#ifdef SERVER_STATE_SUPPORT
     void EnableServerStateUpdates(bool newstate) { m_fEnableStateUpdates = newstate; }
     bool DoServerStateUpdates() { return m_fEnableStateUpdates; }
     void NotifyClients_StateChange(CARD32 state, CARD32 value);
+#endif
     int  GetFTTimeout() { return m_ftTimeout; }
+#ifdef KEEP_ALIVE_SUPPORT
     int  GetKeepAliveInterval () { return m_keepAliveInterval; }
+#endif
 	int  GetIdleInputTimeout() { return m_IdleInputTimeout; }
 	void SetIdleInputTimeout(int secs) { m_IdleInputTimeout = secs; }
 
     void SetFTTimeout(int msecs);
+#ifdef KEEP_ALIVE_SUPPORT
     void EnableKeepAlives(bool newstate) { m_fEnableKeepAlive = newstate; }
     bool DoKeepAlives() { return m_fEnableKeepAlive; }
     void SetKeepAliveInterval(int secs) { 
@@ -465,6 +490,7 @@ public:
     if (m_keepAliveInterval >= (m_ftTimeout - KEEPALIVE_HEADROOM))
         m_keepAliveInterval = m_ftTimeout  - KEEPALIVE_HEADROOM;
     }
+#endif
 
 	void TriggerUpdate();
 
@@ -499,9 +525,10 @@ protected:
 
 	// Connection servers
 	vncSockConnect		*m_socketConn;
+#ifdef HTTP_SUPPORT
 	vncHTTPConnect		*m_httpConn;
 	BOOL				m_enableHttpConn;
-
+#endif
 
 	// The desktop handler
 	vncDesktop			*m_desktop;
@@ -549,6 +576,7 @@ protected:
 	LONG				m_MaxCpu;
 	BOOL				m_poll_consoleonly;
 
+	BOOL				m_deskDupEngine;
 	BOOL				m_driver;
 	BOOL				m_hook;
 	BOOL				m_virtual;
@@ -597,6 +625,7 @@ protected:
 	BOOL    m_fMSLogonRequired;
 	BOOL    m_fNewMSLogon;
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSMPlugin
 	BOOL m_fDSMPluginEnabled;
 	BOOL m_NatPluginEnabled;
@@ -604,6 +633,7 @@ protected:
 	CDSMPlugin *m_pDSMPlugin;
 	//adzm 2010-05-12 - dsmplugin config
 	char m_szDSMPluginConfig[512];
+#endif
 
 	// sf@2002 - Cursor handling
 	BOOL m_fXRichCursor; 
@@ -624,8 +654,12 @@ protected:
 	BOOL m_fFTUserImpersonation;
 
 	HINSTANCE   hWtsLib;
+#ifdef SERVER_STATE_SUPPORT
     bool m_fEnableStateUpdates;
+#endif
+#ifdef KEEP_ALIVE_SUPPORT
     bool m_fEnableKeepAlive;
+#endif
     int m_ftTimeout;
     int m_keepAliveInterval;
 	int m_IdleInputTimeout;

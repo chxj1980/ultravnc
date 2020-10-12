@@ -585,6 +585,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		EnableCache(false);
 		break;
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	case rfbEncodingZSTDRLE:
 		vnclog.Print(LL_INTINFO, VNCLOG("ZSTDRLE encoder requested\n"));			
 		if (!zrleEncoder)
@@ -593,6 +594,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		((vncEncodeZRLE*)zrleEncoder)->m_use_zywrle = FALSE;
 		((vncEncodeZRLE*)zrleEncoder)->set_use_zstd(true);
 		break;
+
 	case rfbEncodingZRLE:
 		vnclog.Print(LL_INTINFO, VNCLOG("ZRLE encoder requested\n"));			
 		if (!zrleEncoder)
@@ -618,6 +620,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		((vncEncodeZRLE*)zrleEncoder)->m_use_zywrle = TRUE;
 		((vncEncodeZRLE*)zrleEncoder)->set_use_zstd(false);
 		break;
+#endif
 #ifdef _XZ
 	case rfbEncodingXZ:
 		vnclog.Print(LL_INTINFO, VNCLOG("XZ encoder requested\n"));
@@ -652,6 +655,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		((vncEncodeZlib*)m_encoder)->set_use_zstd(false);
 		break;
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	case rfbEncodingZstd:
 		vnclog.Print(LL_INTINFO, VNCLOG("Zstd encoder requested\n"));
 		if ( m_hold_zlib_encoder == NULL )
@@ -663,6 +667,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		zlib_encoder_in_use = true;//
 		((vncEncodeZlib*)m_encoder)->set_use_zstd(true);
 		break;
+#endif
 
 	case rfbEncodingZlibHex:
 		vnclog.Print(LL_INTINFO, VNCLOG("ZlibHex encoder requested\n"));
@@ -676,6 +681,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		((vncEncodeZlibHex*)m_encoder)->set_use_zstd(false);
 		break;
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	case rfbEncodingZstdHex:
 		vnclog.Print(LL_INTINFO, VNCLOG("ZstdbHex encoder requested\n"));
 		if ( m_hold_zlibhex_encoder == NULL )
@@ -687,6 +693,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		zlibhex_encoder_in_use = true;//
 		((vncEncodeZlibHex*)m_encoder)->set_use_zstd(true);
 		break;
+#endif
 
 	case rfbEncodingTight:
 		vnclog.Print(LL_INTINFO, VNCLOG("Tight encoder requested\n"));
@@ -700,6 +707,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		((vncEncodeTight*)m_encoder)->set_use_zstd(false);
 		break;
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	case rfbEncodingTightZstd:
 		vnclog.Print(LL_INTINFO, VNCLOG("TightZstd encoder requested\n"));
 		if (m_hold_tight_encoder == NULL)
@@ -711,6 +719,7 @@ vncEncodeMgr::SetEncoding(CARD32 encoding,BOOL reinitialize)
 		tight_encoder_in_use = true;
 		((vncEncodeTight*)m_encoder)->set_use_zstd(true);
 		break;
+#endif
 
 	default:
 		// An unknown encoding was specified

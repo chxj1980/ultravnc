@@ -139,6 +139,7 @@ VSocket::VSocket()
 	sock = INVALID_SOCKET;
 
 #endif
+#ifdef DSM_SUPPORT
 	//vnclog.Print(LL_SOCKINFO, VNCLOG("VSocket() m_pDSMPlugin = NULL \n"));
 	m_pDSMPlugin = NULL;
 	//adzm 2009-06-20
@@ -146,6 +147,7 @@ VSocket::VSocket()
 	//adzm 2010-05-10
 	m_pIntegratedPluginInterface = NULL;
 	m_fUsePlugin = false;
+#endif
 	
 	m_pNetRectBuf = NULL;
 	m_nNetRectBufSize = 0;
@@ -157,9 +159,11 @@ VSocket::VSocket()
 	//adzm 2010-08-01
 	m_LastSentTick = 0;
 
+#ifdef DSM_SUPPORT
 	//adzm 2010-09
 	m_fPluginStreamingIn = false;
 	m_fPluginStreamingOut = false;	
+#endif
 	G_SENDBUFFER=G_SENDBUFFER_EX;
 }
 
@@ -404,6 +408,7 @@ VSocket::Close4()
 	closesocket(sock4);
 	sock4 = INVALID_SOCKET;
 
+#ifdef DSM_SUPPORT
 	//adzm 2009-06-20
 	if (m_pPluginInterface) {
 		delete m_pPluginInterface;
@@ -411,6 +416,7 @@ VSocket::Close4()
 		//adzm 2010-05-10
 		m_pIntegratedPluginInterface=NULL;
 	}
+#endif
 	return VTrue;
 }
 VBool
@@ -421,6 +427,7 @@ VSocket::Close6()
 	closesocket(sock6);
 	sock6 = INVALID_SOCKET;
 
+#ifdef DSM_SUPPORT
 	//adzm 2009-06-20
 	if (m_pPluginInterface) {
 		delete m_pPluginInterface;
@@ -428,6 +435,8 @@ VSocket::Close6()
 		//adzm 2010-05-10
 		m_pIntegratedPluginInterface = NULL;
 	}
+#endif
+
 	return VTrue;
 }
 #else
@@ -446,6 +455,7 @@ VSocket::Close()
       sock = INVALID_SOCKET;
     }
 
+#ifdef DSM_SUPPORT
   //adzm 2009-06-20
   if (m_pPluginInterface) {
     delete m_pPluginInterface;
@@ -453,6 +463,7 @@ VSocket::Close()
 	//adzm 2010-05-10
 	m_pIntegratedPluginInterface=NULL;
   }
+#endif
   return VTrue;
 }
 #endif
@@ -1536,6 +1547,7 @@ VSocket::SendExactSock(const char *buff, const VCard bufflen, unsigned char msgT
 	if (allsock == -1) return VFalse;
 	//vnclog.Print(LL_SOCKERR, VNCLOG("SendExactMsg %i\n") ,bufflen);
 	// adzm 2010-09
+#ifdef DSM_SUPPORT
 	if (!IsPluginStreamingOut() && m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// Send the transformed message type first
@@ -1545,6 +1557,7 @@ VSocket::SendExactSock(const char *buff, const VCard bufflen, unsigned char msgT
 		SendExact(buff, bufflen);
 	}
 	else
+#endif
 		SendExact(buff, bufflen);
 
 	return VTrue;
@@ -1556,6 +1569,7 @@ VSocket::SendExact(const char *buff, const VCard bufflen, unsigned char msgType)
 	if (sock==-1) return VFalse;
 	//vnclog.Print(LL_SOCKERR, VNCLOG("SendExactMsg %i\n") ,bufflen);
 	// adzm 2010-09
+#ifdef DSM_SUPPORT
 	if (!IsPluginStreamingOut() && m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// Send the transformed message type first
@@ -1565,6 +1579,7 @@ VSocket::SendExact(const char *buff, const VCard bufflen, unsigned char msgType)
 		SendExact(buff, bufflen);
 	}
 	else
+#endif
 		SendExact(buff, bufflen);
 
 	return VTrue;
@@ -1585,6 +1600,7 @@ VSocket::SendExactQueueSock(const char *buff, const VCard bufflen, unsigned char
 	if (allsock == -1) return VFalse;
 	//vnclog.Print(LL_SOCKERR, VNCLOG("SendExactMsg %i\n") ,bufflen);
 	// adzm 2010-09
+#ifdef DSM_SUPPORT
 	if (!IsPluginStreamingOut() && m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// Send the transformed message type first
@@ -1594,6 +1610,7 @@ VSocket::SendExactQueueSock(const char *buff, const VCard bufflen, unsigned char
 		SendExactQueue(buff, bufflen);
 	}
 	else
+#endif
 		SendExactQueue(buff, bufflen);
 
 	return VTrue;
@@ -1606,6 +1623,7 @@ VSocket::SendExactQueue(const char *buff, const VCard bufflen, unsigned char msg
 	if (sock==-1) return VFalse;
 	//vnclog.Print(LL_SOCKERR, VNCLOG("SendExactMsg %i\n") ,bufflen);
 	// adzm 2010-09
+#ifdef DSM_SUPPORT
 	if (!IsPluginStreamingOut() && m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// Send the transformed message type first
@@ -1615,6 +1633,7 @@ VSocket::SendExactQueue(const char *buff, const VCard bufflen, unsigned char msg
 		SendExactQueue(buff, bufflen);
 	}
 	else
+#endif
 		SendExactQueue(buff, bufflen);
 
 	return VTrue;
@@ -1642,6 +1661,7 @@ VSocket::SendExactSock(const char *buff, const VCard bufflen, SOCKET allsock)
 	// sf@2002 - DSMPlugin
 	VCard nBufflen = bufflen;
 	char* pBuffer = NULL;
+#ifdef DSM_SUPPORT
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// omni_mutex_lock l(m_TransMutex);
@@ -1667,6 +1687,7 @@ VSocket::SendExactSock(const char *buff, const VCard bufflen, SOCKET allsock)
 		
 	}
 	else
+#endif
 		pBuffer = (char*) buff;
 	
 	VInt result=Send(pBuffer, nBufflen);
@@ -1685,6 +1706,7 @@ VSocket::SendExact(const char *buff, const VCard bufflen)
 	// sf@2002 - DSMPlugin
 	VCard nBufflen = bufflen;
 	char* pBuffer = NULL;
+#ifdef DSM_SUPPORT
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// omni_mutex_lock l(m_TransMutex);
@@ -1710,6 +1732,7 @@ VSocket::SendExact(const char *buff, const VCard bufflen)
 		
 	}
 	else
+#endif
 		pBuffer = (char*) buff;
 	
 	VInt result=Send(pBuffer, nBufflen);
@@ -1738,6 +1761,7 @@ VSocket::SendExactQueueSock(const char *buff, const VCard bufflen, SOCKET allsoc
 	// sf@2002 - DSMPlugin
 	VCard nBufflen = bufflen;
 	char* pBuffer = NULL;
+#ifdef DSM_SUPPORT
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// omni_mutex_lock l(m_TransMutex);
@@ -1763,6 +1787,7 @@ VSocket::SendExactQueueSock(const char *buff, const VCard bufflen, SOCKET allsoc
 
 	}
 	else
+#endif
 		pBuffer = (char*)buff;
 
 	VInt result = SendQueued(pBuffer, nBufflen);
@@ -1782,6 +1807,7 @@ VSocket::SendExactQueue(const char *buff, const VCard bufflen)
 	// sf@2002 - DSMPlugin
 	VCard nBufflen = bufflen;
 	char* pBuffer = NULL;
+#ifdef DSM_SUPPORT
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
 		// omni_mutex_lock l(m_TransMutex);
@@ -1807,6 +1833,7 @@ VSocket::SendExactQueue(const char *buff, const VCard bufflen)
 		
 	}
 	else
+#endif
 		pBuffer = (char*) buff;
 	
 	VInt result=SendQueued(pBuffer, nBufflen);
@@ -1906,6 +1933,7 @@ VSocket::ReadExactSock(char *buff, const VCard bufflen, SOCKET allsock)
 	int n;
 	VCard currlen = bufflen;
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSM Plugin
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
@@ -1966,6 +1994,7 @@ VSocket::ReadExactSock(char *buff, const VCard bufflen, SOCKET allsock)
 		}
 	}
 	else // Non-Transformed
+#endif
 	{
 		while (currlen > 0)
 		{
@@ -2009,6 +2038,7 @@ VSocket::ReadExact(char *buff, const VCard bufflen)
 	int n;
 	VCard currlen = bufflen;
     
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSM Plugin
 	if (m_fUsePlugin && m_pDSMPlugin->IsEnabled())
 	{
@@ -2067,6 +2097,7 @@ VSocket::ReadExact(char *buff, const VCard bufflen)
 		}
 	}
 	else // Non-Transformed
+#endif
 	{
 		while (currlen > 0)
 		{
@@ -2097,6 +2128,7 @@ return VTrue;
 }
 #endif
 
+#ifdef DSM_SUPPORT
 //
 // sf@2002 - DSMPlugin
 // 
@@ -2173,6 +2205,7 @@ BYTE* VSocket::RestoreBufferStep2(BYTE* pRestoredDataBuffer, int nDataLen, int* 
 		return m_pDSMPlugin->RestoreBufferStep2(pRestoredDataBuffer, nDataLen, pnRestoredDataLen);
 	}
 }
+#endif
 
 //
 // Ensures that the temporary "alignement" buffer in large enough 

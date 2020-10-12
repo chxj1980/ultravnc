@@ -70,6 +70,10 @@
 #include <process.h>
 #include <crtdbg.h>
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include <QString>
+#endif
+
 //#include "dpi.h"
 
 // LOGGING SUPPORT
@@ -80,6 +84,15 @@ bool CheckVideoDriver(bool);
 #include "vnclog.h"
 extern VNCLog vnclog;
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#define LL_NONE		0
+#define LL_STATE	1
+#define LL_CLIENTS	2
+#define LL_CONNERR	3
+#define LL_SOCKERR	4
+#define LL_INTERR	5
+#define LL_ERROR	6
+#else
 // No logging at all
 #define LL_NONE		0
 // Log server startup/shutdown
@@ -92,6 +105,7 @@ extern VNCLog vnclog;
 #define LL_SOCKERR	4
 // Log internal errors
 #define LL_INTERR	0
+#endif
 
 // Log internal warnings
 #define LL_INTWARN	8
@@ -103,7 +117,11 @@ extern VNCLog vnclog;
 #define LL_ALL		10
 
 // Macros for sticking in the current file name
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#define VNCLOG(s)	(QStringLiteral("%1 : %2").arg(QLatin1String(__PRETTY_FUNCTION__)).arg(QStringLiteral(s)).toUtf8().constData())
+#else
 #define VNCLOG(s)	(__FILE__ " : " s)
+#endif
 //#if MSC_VER > 12
 #ifndef _X64
 #pragma comment(linker,"/manifestdependency:\"type='Win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='X86' publicKeyToken='6595b64144ccf1df' language='*'\"")

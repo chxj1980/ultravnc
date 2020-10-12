@@ -53,6 +53,7 @@ VNCLog::VNCLog()
 	m_path[0] = 0;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void VNCLog::SetMode(int mode)
 {
 	m_mode = mode;
@@ -91,12 +92,14 @@ void VNCLog::SetMode(int mode)
         m_toconsole = false;
     }
 }
+#endif
 
 
 void VNCLog::SetLevel(int level) {
     m_level = level;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void VNCLog::SetFile() 
 {
 	char temp[512];
@@ -167,7 +170,35 @@ void VNCLog::CloseFile() {
         hlogfile = NULL;
     }
 }
+#endif
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include <QDebug>
+#include <QLoggingCategory>
+Q_DECLARE_LOGGING_CATEGORY(lcUltraVnc)
+Q_LOGGING_CATEGORY(lcUltraVnc, "UltraVNC")
+
+inline void VNCLog::ReallyPrintLine(int level, const char* line) 
+{
+	if( level == LL_SOCKERR || level == LL_ERROR )
+	{
+		qCritical(lcUltraVnc) << line;
+	}
+	else if( level == LL_CONNERR )
+	{
+		qWarning(lcUltraVnc) << line;
+	}
+	else if( level == LL_STATE ||
+				level == LL_CLIENTS || level == LL_INTERR )
+	{
+		qInfo(lcUltraVnc) << line;
+	}
+	else
+	{
+		qDebug(lcUltraVnc) << line;
+	}
+}
+#else
 inline void VNCLog::ReallyPrintLine(const char* line) 
 {
     if (m_todebug) OutputDebugString(line);
@@ -180,14 +211,17 @@ inline void VNCLog::ReallyPrintLine(const char* line)
         WriteFile(hlogfile, line, strlen(line), &byteswritten, NULL); 
     }
 }
+#endif
 
-void VNCLog::ReallyPrint(const char* format, va_list ap) 
+void VNCLog::ReallyPrint(int level, const char* format, va_list ap) 
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	time_t current = time(0);
 	if (current != m_lastLogTime) {
 		m_lastLogTime = current;
 		ReallyPrintLine(ctime(&m_lastLogTime));
 	}
+#endif
 
 	// - Write the log message, safely, limiting the output buffer size
 	TCHAR line[(LINE_BUFFER_SIZE * 2) + 1]; // sf@2006 - Prevents buffer overflow
@@ -201,16 +235,18 @@ void VNCLog::ReallyPrint(const char* format, va_list ap)
              MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(char *)&szErrorMsg,
              LINE_BUFFER_SIZE, NULL) == 0)
         {
-            sprintf_s(szErrorMsg, "error code 0x%08X", dwErrorCode);
+            sprintf_s(szErrorMsg, "error code 0x%08X", (unsigned int) dwErrorCode);
         }
 	strcat_s(line," --");
 	strcat_s(line,szErrorMsg);
+	level = LL_ERROR;
     }
-	ReallyPrintLine(line);
+	ReallyPrintLine(level, line);
 }
 
 VNCLog::~VNCLog()
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
     try
     {
         CloseFile();
@@ -218,6 +254,7 @@ VNCLog::~VNCLog()
     catch(...)
     {
     }
+#endif
 }
 
 void VNCLog::GetLastErrorMsg(LPSTR szErrorMsg) const {

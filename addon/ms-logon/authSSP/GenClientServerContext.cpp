@@ -22,9 +22,13 @@
 // http://www.uvnc.com
 // /macine-vnc Greg Wood (wood@agressiv.com)
 
+#include <algorithm>
+
 #include "GenClientServerContext.h"
 extern Fn fn;
 
+#define __leave goto cleanup
+#define __finally cleanup:
 
 BOOL APIENTRY DllMain( HANDLE hModule, 
                        DWORD  ul_reason_for_call, 

@@ -54,7 +54,11 @@ DWORD	g_platform_id;
 BOOL	g_impersonating_user = 0;
 DWORD	g_version_major;
 DWORD	g_version_minor;
+#ifdef ULTRAVNC_VEYON_SUPPORT
+BOOL	m_fRunningFromExternalService = true;
+#else
 BOOL	m_fRunningFromExternalService = false;
+#endif
 
 typedef DWORD (WINAPI* pWTSGetActiveConsoleSessionId)(VOID);
 typedef BOOL (WINAPI * pProcessIdToSessionId)(DWORD,DWORD*);
@@ -117,6 +121,7 @@ DWORD GetCurrentConsoleSessionID()
 	return dwSessionId;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 DWORD vncService::GetExplorerLogonPid()
 {
 	char alternate_shell[129];
@@ -228,6 +233,7 @@ GetConsoleUser(char *buffer, UINT size)
 	CloseHandle(hProcess);
 	return 0;
 }
+#endif
 
 
 
@@ -244,6 +250,7 @@ vncService::vncService()
 	g_version_minor = osversioninfo.dwMinorVersion;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 // CurrentUser - fills a buffer with the name of the current user!
 BOOL
 GetCurrentUser(char *buffer, UINT size) // RealVNC 336 change
@@ -364,6 +371,7 @@ vncService::CurrentUser(char *buffer, UINT size)
   }
   return result;
 }
+#endif
 
 
 BOOL vncService::IsWSLocked()
@@ -434,6 +442,7 @@ vncService::VersionMinor()
 	return g_version_minor;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 //adzm 2010-02-10 - Finds the appropriate VNC window
 HWND
 FindWinVNCWindow(bool bThisProcess)
@@ -508,6 +517,7 @@ PostToThisWinVNC(UINT message, WPARAM wParam, LPARAM lParam)
 	PostMessage(hservwnd, message, wParam, lParam);
 	return TRUE;
 }
+#endif
 
 
 // Static routines only used on Windows NT to ensure we're in the right desktop
@@ -717,6 +727,7 @@ vncService::InputDesktopSelected()
 }
 
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 // Static routine used to fool Winlogon into thinking CtrlAltDel was pressed
 
 void *
@@ -994,6 +1005,7 @@ vncService::PostAddConnectClient( const char* pszId )
 	}
 	return ( PostToWinVNC(MENU_REPEATER_ID_MSG, 0, (LPARAM)aId) );
 }
+#endif
 
 BOOL
 vncService::RunningAsService()
@@ -1012,9 +1024,14 @@ vncService::RunningFromExternalService()
 void 
 vncService::RunningFromExternalService(BOOL fEnabled)
 {
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	m_fRunningFromExternalService = true;
+#else
 	m_fRunningFromExternalService = fEnabled;
+#endif
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 ////////////////////////////////////////////////////////////////////////////////
 extern char service_name[];
 bool
@@ -1036,5 +1053,6 @@ vncService::IsInstalled()
     }
     return (FALSE != bResult);
 }
+#endif
 
 

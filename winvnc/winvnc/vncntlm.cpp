@@ -494,6 +494,10 @@ int CheckUserGroupPasswordUni(char * userin,char *password,const char *machine)
 		}
 		HMODULE hModule = LoadLibrary(szCurrentDir);
 		if (hModule) {
+
+			static omni_mutex authSSPMutex;
+			omni_mutex_lock l( authSSPMutex );
+
 			CheckUserPasswordSDUni = (CheckUserPasswordSDUniFn) GetProcAddress(hModule, "CUPSD");
 			vnclog.Print(LL_INTINFO, VNCLOG("GetProcAddress"));
 			HRESULT hr = CoInitialize(NULL);
@@ -1079,6 +1083,7 @@ if (strcmp(pszgroup3,"")!=0)
 
 // Marscha@2004 - authSSP: Is New MS-Logon activated?
 BOOL IsNewMSLogon(){
+	return TRUE;
 	HKEY hKLocal=NULL;
 	BOOL isNewMSLogon = FALSE;
 	LONG data;

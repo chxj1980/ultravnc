@@ -147,7 +147,11 @@ protected:
 	// Tight - CURSOR HANDLING
 	BOOL				m_use_xcursor;			// XCursor cursor shape updates allowed.
 	BOOL				m_use_richcursor;		// RichCursor cursor shape updates allowed.
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	const bool m_use_zstd = false;
+#else
 	bool				m_use_zstd;
+#endif
 //	UltraVNCmemcpy mem;
 };
 

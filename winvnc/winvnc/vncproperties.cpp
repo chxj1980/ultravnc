@@ -40,7 +40,9 @@
 #include "vncpasswd.h"
 #include "vncOSVersion.h"
 #include "common/win32_helpers.h"
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #include "vncConnDialog.h"
+#endif
 
 #include "Localization.h" // ACT : Add localization on messages
 
@@ -102,20 +104,28 @@ vncProperties::Init(vncServer *server)
 	m_server = server;
 
 	// sf@2007 - Registry mode can still be forced for backward compatibility and OS version < Vista
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	m_fUseRegistry = TRUE;
+#else
 	m_fUseRegistry = ((myIniFile.ReadInt("admin", "UseRegistry", 0) == 1) ? TRUE : FALSE);
+#endif
 
 	// Load the settings
 	if (m_fUseRegistry)
 		Load(TRUE);
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	else
 		LoadFromIniFile();
+#endif
 
 	// If the password is empty then always show a dialog
 	char passwd[MAXPWLEN];
 	m_server->GetPassword(passwd);
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	{
 	    vncPasswd::ToText plain(passwd, m_pref_Secure);
 	    if (strlen(plain) == 0)
+		{
 			 if (!m_allowproperties || !RunningAsAdministrator ()) {
 				if(m_server->AuthRequired()) {
 					MessageBoxSecure(NULL, sz_ID_NO_PASSWD_NO_OVERRIDE_ERR,
@@ -147,7 +157,9 @@ vncProperties::Init(vncServer *server)
 					}
 				}
 			}
+		}
 	}
+#endif
 	Lock_service_helper=false;
 	return TRUE;
 }
@@ -158,6 +170,7 @@ vncProperties::Init(vncServer *server)
 void
 vncProperties::ShowAdmin(BOOL show, BOOL usersettings)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 //	if (Lock_service_helper) return;
 	HANDLE hProcess=NULL;
 	HANDLE hPToken=NULL;
@@ -346,6 +359,9 @@ vncProperties::ShowAdmin(BOOL show, BOOL usersettings)
 				}
 
 				vnclog.Print(LL_INTERR, VNCLOG("warning - empty password\n"));
+#ifdef ULTRAVNC_VEYON_SUPPORT
+					break;
+#endif
 
 				// If we reached here then OK was used & there is no password!
 				int result2 = MessageBoxSecure(NULL, sz_ID_NO_PASSWORD_WARN,
@@ -383,8 +399,10 @@ vncProperties::ShowAdmin(BOOL show, BOOL usersettings)
 	if(iImpersonateResult == ERROR_SUCCESS)RevertToSelf();
 	if (hProcess) CloseHandle(hProcess);
 	if (hPToken) CloseHandle(hPToken);
+#endif
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 BOOL CALLBACK
 vncProperties::DialogProc(HWND hwnd,
 						  UINT uMsg,
@@ -645,6 +663,7 @@ vncProperties::DialogProc(HWND hwnd,
 				TRUE,
 				0);
 
+#ifdef DSM_SUPPORT
 			// sf@2002 - List available DSM Plugins
 			HWND hPlugins = GetDlgItem(hwnd, IDC_PLUGINS_COMBO);
 			int nPlugins = _this->m_server->GetDSMPluginPointer()->ListPlugins(hPlugins);
@@ -659,6 +678,7 @@ vncProperties::DialogProc(HWND hwnd,
 			// Modif sf@2002
 			SendMessage(GetDlgItem(hwnd, IDC_PLUGIN_CHECK), BM_SETCHECK, _this->m_server->IsDSMPluginEnabled(), 0);
 			EnableWindow(GetDlgItem(hwnd, IDC_PLUGIN_BUTTON), _this->m_server->IsDSMPluginEnabled());
+#endif
 
 			// Query window option - Taken from TightVNC advanced properties 
 			BOOL queryEnabled = (_this->m_server->QuerySetting() == 4);
@@ -949,6 +969,7 @@ vncProperties::DialogProc(HWND hwnd,
 				if (nDScale < 1 || nDScale > 9) nDScale = 1;
 				_this->m_server->SetDefaultScale(nDScale);
 				
+#ifdef DSM_SUPPORT
 				// sf@2002 - DSM Plugin loading
 				// If Use plugin is checked, load the plugin if necessary
 				if (SendMessage(GetDlgItem(hwnd, IDC_PLUGIN_CHECK), BM_GETCHECK, 0, 0) == BST_CHECKED)
@@ -970,6 +991,7 @@ vncProperties::DialogProc(HWND hwnd,
 
 				//adzm 2010-05-12 - dsmplugin config
 				_this->m_server->SetDSMPluginConfig(_this->m_pref_DSMPluginConfig);
+#endif
 
 				// Query Window options - Taken from TightVNC advanced properties
 				char timeout[256];
@@ -1252,6 +1274,7 @@ vncProperties::DialogProc(HWND hwnd,
 				CheckVideoDriver(1);
 			}
 			return TRUE;
+#ifdef DSM_SUPPORT
 		case IDC_PLUGIN_BUTTON:
 			{
 				HWND hPlugin = GetDlgItem(hwnd, IDC_PLUGIN_CHECK);
@@ -1291,6 +1314,7 @@ vncProperties::DialogProc(HWND hwnd,
 
 		}
 		break;
+#endif
 	}
 	return 0;
 }
@@ -1336,7 +1360,12 @@ vncProperties::InitPortSettings(HWND hwnd)
 	EnableWindow(GetDlgItem(hwnd, IDC_PORTHTTP),
 		bConnectSock && !bAutoPort && !bValidDisplay);
 }
+#endif
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+extern BOOL ultravnc_veyon_load_int( LPCSTR valname, LONG *out );
+extern void ultravnc_veyon_load_password( char* out, int size );
+#endif
 
 // Functions to load & save the settings
 LONG
@@ -1346,6 +1375,14 @@ vncProperties::LoadInt(HKEY key, LPCSTR valname, LONG defval)
 	ULONG type = REG_DWORD;
 	ULONG prefsize = sizeof(pref);
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	LONG out;
+	if( ultravnc_veyon_load_int( valname, &out ) )
+	{
+		return out;
+	}
+	return defval;
+#endif
 	if (RegQueryValueEx(key,
 		valname,
 		NULL,
@@ -1366,6 +1403,9 @@ vncProperties::LoadInt(HKEY key, LPCSTR valname, LONG defval)
 void
 vncProperties::LoadPassword(HKEY key, char *buffer)
 {
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	ultravnc_veyon_load_password( buffer, MAXPWLEN );
+#else
 	DWORD type = REG_BINARY;
 	int slen=MAXPWLEN;
 	char inouttext[MAXPWLEN];
@@ -1383,11 +1423,15 @@ vncProperties::LoadPassword(HKEY key, char *buffer)
 		return;
 
 	memcpy(buffer, inouttext, MAXPWLEN);
+#endif
 }
 
 void //PGM
 vncProperties::LoadPassword2(HKEY key, char *buffer) //PGM
 { //PGM
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	ultravnc_veyon_load_password( buffer, MAXPWLEN );
+#else
 	DWORD type = REG_BINARY; //PGM
 	int slen=MAXPWLEN; //PGM
 	char inouttext[MAXPWLEN]; //PGM
@@ -1405,6 +1449,7 @@ vncProperties::LoadPassword2(HKEY key, char *buffer) //PGM
 		return; //PGM
 
 	memcpy(buffer, inouttext, MAXPWLEN); //PGM
+#endif
 } //PGM
 
 char *
@@ -1450,6 +1495,7 @@ vncProperties::LoadString(HKEY key, LPCSTR keyname)
 }
 
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncProperties::ResetRegistry()
 {	
@@ -1511,6 +1557,7 @@ LABELUSERSETTINGS:
 		}
 
 }
+#endif
 
 void
 vncProperties::Load(BOOL usersettings)
@@ -1521,7 +1568,9 @@ vncProperties::Load(BOOL usersettings)
 	//	vnclog.Print(LL_INTWARN, VNCLOG("service helper invoked while Properties panel displayed\n"));
 	//	return;
 	//}
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	ResetRegistry();
+#endif
 
 	if (vncService::RunningAsService()) usersettings=false;
 
@@ -1540,7 +1589,9 @@ vncProperties::Load(BOOL usersettings)
 	else
 		vnclog.Print(LL_INTINFO, VNCLOG("***** DBG - Service mode\n"));
 	
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	char username[UNLEN+1];
+#endif
 	HKEY hkLocal, hkLocalUser, hkDefault;
 	DWORD dw;
 	
@@ -1553,6 +1604,11 @@ vncProperties::Load(BOOL usersettings)
 
 	// GET THE CORRECT KEY TO READ FROM
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	hkLocal = nullptr;
+	hkLocalUser = nullptr;
+	hkDefault = nullptr;
+#else
 	// Get the user name / service name
 	if (!vncService::CurrentUser((char *)&username, sizeof(username)))
 	{
@@ -1597,6 +1653,7 @@ vncProperties::Load(BOOL usersettings)
 		&hkDefault,
 		&dw) != ERROR_SUCCESS)
 		hkDefault = NULL;
+#endif
 
 	// LOAD THE MACHINE-LEVEL PREFS
 
@@ -1629,6 +1686,7 @@ vncProperties::Load(BOOL usersettings)
 	m_pref_NewMSLogon = LoadInt(hkLocal, "NewMSLogon", m_pref_NewMSLogon);
 	m_server->SetNewMSLogon(m_pref_NewMSLogon);
 
+#ifdef DSM_SUPPORT
 	// sf@2003 - Moved DSM params here
 	m_pref_UseDSMPlugin=false;
 	m_pref_UseDSMPlugin = LoadInt(hkLocal, "UseDSMPlugin", m_pref_UseDSMPlugin);
@@ -1644,6 +1702,7 @@ vncProperties::Load(BOOL usersettings)
 			m_pref_DSMPluginConfig[0] = '\0';
 		}
 	}
+#endif
 #ifdef IPV6V4
 	m_server->SetIPV6(LoadInt(hkLocal, "UseIpv6", true));
 #endif
@@ -1718,7 +1777,9 @@ LABELUSERSETTINGS:
 	m_pref_DefaultScale = 1;
 
 	// Load the local prefs for this user
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (hkDefault != NULL)
+#endif
 	{
 		vnclog.Print(LL_INTINFO, VNCLOG("***** DBG - Local Preferences - Default\n"));
 
@@ -1730,6 +1791,7 @@ LABELUSERSETTINGS:
 		m_alloweditclients = LoadInt(hkDefault, "AllowEditClients", m_alloweditclients);
 	}
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// Are we being asked to load the user settings, or just the default local system settings?
 	if (usersettings)
 	{
@@ -1780,6 +1842,7 @@ LABELUSERSETTINGS:
 		}
 		vnclog.Print(LL_INTINFO, VNCLOG("bypassing user-specific settings (both local and global)\n"));
 	}
+#endif
 
 	if (hkLocalUser != NULL) RegCloseKey(hkLocalUser);
 	if (hkDefault != NULL) RegCloseKey(hkDefault);
@@ -1804,8 +1867,10 @@ vncProperties::LoadUserPrefs(HKEY appkey)
 	m_pref_Primary=LoadInt(appkey, "primary", m_pref_Primary);
 	m_pref_Secondary=LoadInt(appkey, "secondary", m_pref_Secondary);
 
+#ifdef DSM_SUPPORT
 	m_pref_UseDSMPlugin = LoadInt(appkey, "UseDSMPlugin", m_pref_UseDSMPlugin);
 	LoadDSMPluginName(appkey, m_pref_szDSMPlugin);
+#endif
 
 	// Connection prefs
 	m_pref_SockConnect=LoadInt(appkey, "SocketConnect", m_pref_SockConnect);
@@ -1882,7 +1947,9 @@ vncProperties::ApplyUserPrefs()
 	if (!m_pref_SockConnect)
 		m_server->SockConnect(m_pref_SockConnect);
 
+#ifdef HTTP_SUPPORT
 	m_server->EnableHTTPConnect(m_pref_HTTPConnect);
+#endif
 
 	// Are inputs being disabled?
 	if (!m_pref_EnableRemoteInputs)
@@ -1917,6 +1984,7 @@ vncProperties::ApplyUserPrefs()
 	m_server->EnableUnicodeInput(m_pref_EnableUnicodeInput);
 	m_server->Win8HelperEnabled(m_pref_EnableWin8Helper);
 	m_server->Clearconsole(m_pref_clearconsole);
+#ifdef DSM_SUPPORT
 	// DSM Plugin prefs
 	m_server->EnableDSMPlugin(m_pref_UseDSMPlugin);
 	m_server->SetDSMPluginName(m_pref_szDSMPlugin);
@@ -1926,8 +1994,10 @@ vncProperties::ApplyUserPrefs()
 
 	if (m_server->IsDSMPluginEnabled()) 
 		m_server->SetDSMPlugin(false);
+#endif
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncProperties::SaveInt(HKEY key, LPCSTR valname, LONG val)
 {
@@ -1949,7 +2019,9 @@ vncProperties::SaveString(HKEY key,LPCSTR valname, const char *buffer)
 {
 	RegSetValueEx(key, valname, 0, REG_BINARY, (LPBYTE) buffer, (DWORD)(strlen(buffer)+1));
 }
+#endif
 
+#ifdef DSM_SUPPORT
 void
 vncProperties::SaveDSMPluginName(HKEY key, char *buffer)
 {
@@ -1976,7 +2048,9 @@ vncProperties::LoadDSMPluginName(HKEY key, char *buffer)
 
 	memcpy(buffer, inouttext, MAXPATH);
 }
+#endif
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncProperties::Save()
 {
@@ -2074,13 +2148,17 @@ vncProperties::Save()
 	SaveInt(hkLocal, "MSLogonRequired", m_server->MSLogonRequired());
 	// Marscha@2004 - authSSP: save "New MS-Logon" state
 	SaveInt(hkLocal, "NewMSLogon", m_server->GetNewMSLogon());
+#ifdef DSM_SUPPORT
 	// sf@2003 - DSM params here
 	SaveInt(hkLocal, "UseDSMPlugin", m_server->IsDSMPluginEnabled());
+#endif
 	SaveInt(hkLocal, "ConnectPriority", m_server->ConnectPriority());
+#ifdef DSM_SUPPORT
 	SaveDSMPluginName(hkLocal, m_server->GetDSMPluginName());	
 	
 	//adzm 2010-05-12 - dsmplugin config
 	SaveString(hkLocal, "DSMPluginConfig", m_server->GetDSMPluginConfig());
+#endif
 
 	if (hkDefault) RegCloseKey(hkDefault);
 	if (hkLocal) RegCloseKey(hkLocal);
@@ -2102,18 +2180,24 @@ vncProperties::SaveUserPrefs(HKEY appkey)
 
 	SaveInt(appkey, "DefaultScale", m_server->GetDefaultScale());
 
+#ifdef DSM_SUPPORT
 	SaveInt(appkey, "UseDSMPlugin", m_server->IsDSMPluginEnabled());
 	SaveDSMPluginName(appkey, m_server->GetDSMPluginName());
 	//adzm 2010-05-12 - dsmplugin config
 	SaveString(appkey, "DSMPluginConfig", m_server->GetDSMPluginConfig());
+#endif
 
 	// Connection prefs
 	SaveInt(appkey, "SocketConnect", m_server->SockConnected());
+#ifdef HTTP_SUPPORT
 	SaveInt(appkey, "HTTPConnect", m_server->HTTPConnectEnabled());
+#endif
 	SaveInt(appkey, "AutoPortSelect", m_server->AutoPortSelect());
 	if (!m_server->AutoPortSelect()) {
 		SaveInt(appkey, "PortNumber", m_server->GetPort());
+#ifdef HTTP_SUPPORT
 		SaveInt(appkey, "HTTPPortNumber", m_server->GetHttpPort());
+#endif
 	}
 	SaveInt(appkey, "InputsEnabled", m_server->RemoteInputsEnabled());
 	SaveInt(appkey, "LocalInputsDisabled", m_server->LocalInputsDisabled());
@@ -2297,14 +2381,20 @@ void vncProperties::LoadFromIniFile()
     if (m_ftTimeout > 600)
         m_ftTimeout = 600;
 
+#ifdef KEEP_ALIVE_SUPPORT
     m_keepAliveInterval = myIniFile.ReadInt("admin", "KeepAliveInterval", m_keepAliveInterval);
+#endif
 	m_IdleInputTimeout = myIniFile.ReadInt("admin", "IdleInputTimeout", m_IdleInputTimeout);
 
+#ifdef KEEP_ALIVE_SUPPORT
     if (m_keepAliveInterval >= (m_ftTimeout - KEEPALIVE_HEADROOM))
         m_keepAliveInterval = m_ftTimeout - KEEPALIVE_HEADROOM;
+#endif
 
     m_server->SetFTTimeout(m_ftTimeout);
+#ifdef KEEP_ALIVE_SUPPORT
     m_server->SetKeepAliveInterval(m_keepAliveInterval);
+#endif
 	m_server->SetIdleInputTimeout(m_IdleInputTimeout);
     
 	myIniFile.ReadString("admin", "service_commandline", service_commandline, 1024);
@@ -2411,7 +2501,9 @@ void vncProperties::SaveToIniFile()
 				myIniFile.WriteInt("admin", "AllowInjection",  m_allowInjection);				
 				myIniFile.WriteInt("admin", "AllowEditClients", m_alloweditclients);
 				myIniFile.WriteInt("admin", "FileTransferTimeout", m_ftTimeout);
+#ifdef KEEP_ALIVE_SUPPORT
 				myIniFile.WriteInt("admin", "KeepAliveInterval", m_keepAliveInterval);
+#endif
 				myIniFile.WriteInt("admin", "IdleInputTimeout", m_IdleInputTimeout);
 				myIniFile.WriteInt("admin", "DisableTrayIcon", m_server->GetDisableTrayIcon());
 				myIniFile.WriteInt("admin", "rdpmode", m_server->GetRdpmode());
@@ -2443,7 +2535,9 @@ void vncProperties::SaveToIniFile()
 	myIniFile.WriteInt("admin", "AllowInjection",  m_allowInjection);
 	myIniFile.WriteInt("admin", "AllowEditClients", m_alloweditclients);
     myIniFile.WriteInt("admin", "FileTransferTimeout", m_ftTimeout);
+#ifdef KEEP_ALIVE_SUPPORT
     myIniFile.WriteInt("admin", "KeepAliveInterval", m_keepAliveInterval);
+#endif
 	myIniFile.WriteInt("admin", "IdleInputTimeout", m_IdleInputTimeout);
 	myIniFile.WriteInt("admin", "DisableTrayIcon", m_server->GetDisableTrayIcon());
 	myIniFile.WriteInt("admin", "rdpmode", m_server->GetRdpmode());
@@ -2473,23 +2567,29 @@ void vncProperties::SaveUserPrefsToIniFile()
 
 	myIniFile.WriteInt("admin", "DefaultScale", m_server->GetDefaultScale());
 
+#ifdef DSM_SUPPORT
 	myIniFile.WriteInt("admin", "UseDSMPlugin", m_server->IsDSMPluginEnabled());
 
 	myIniFile.WriteString("admin", "DSMPlugin",m_server->GetDSMPluginName());
 
 	//adzm 2010-05-12 - dsmplugin config
 	//myIniFile.WriteString("admin", "DSMPluginConfig", m_server->GetDSMPluginConfig());
+#endif
 
 	myIniFile.WriteInt("admin", "primary", m_server->Primary());
 	myIniFile.WriteInt("admin", "secondary", m_server->Secondary());
 
 	// Connection prefs
 	myIniFile.WriteInt("admin", "SocketConnect", m_server->SockConnected());
+#ifdef HTTP_SUPPORT
 	myIniFile.WriteInt("admin", "HTTPConnect", m_server->HTTPConnectEnabled());
+#endif
 	myIniFile.WriteInt("admin", "AutoPortSelect", m_server->AutoPortSelect());
 	if (!m_server->AutoPortSelect()) {
 		myIniFile.WriteInt("admin", "PortNumber", m_server->GetPort());
+#ifdef HTTP_SUPPORT
 		myIniFile.WriteInt("admin", "HTTPPortNumber", m_server->GetHttpPort());
+#endif
 	}
 	myIniFile.WriteInt("admin", "InputsEnabled", m_server->RemoteInputsEnabled());
 	myIniFile.WriteInt("admin", "LocalInputsDisabled", m_server->LocalInputsDisabled());
@@ -2549,10 +2649,12 @@ void vncProperties::ReloadDynamicSettings()
 	vnclog.SetLevel(myIniFile.ReadInt("admin", "DebugLevel", 0));
 }
 
+#endif
 
 
 
 
+#ifdef DSM_SUPPORT
 
 void Secure_Save_Plugin_Config(char *szPlugin)
 {
@@ -2773,3 +2875,4 @@ void vncProperties::ExpandBox(HWND hDlg, BOOL fExpand)
 		m_bExpanded = TRUE;
 	}
 }
+#endif

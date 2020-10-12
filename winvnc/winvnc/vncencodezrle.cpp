@@ -26,8 +26,9 @@
 #include <time.h>
 #include <rdr/MemOutStream.h>
 #include <rdr/ZlibOutStream.h>
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #include <rdr/ZstdOutStream.h>
-
+#endif
 
 #define GET_IMAGE_INTO_BUF(tx,ty,tw,th,buf)     \
   rfb::Rect rect;                                    \
@@ -91,7 +92,9 @@ vncEncodeZRLE::vncEncodeZRLE()
 {
   mos = new rdr::MemOutStream;
   zos = new rdr::ZlibOutStream;
+#ifndef ULTRAVNC_VEYON_SUPPORT
   zstdos = new rdr::ZstdOutStream;
+#endif
   beforeBuf = new rdr::U32[rfbZRLETileWidth * rfbZRLETileHeight + 1];
   m_use_zywrle = FALSE;
 }
@@ -100,7 +103,9 @@ vncEncodeZRLE::~vncEncodeZRLE()
 {
   delete mos;
   delete zos;
+#ifndef ULTRAVNC_VEYON_SUPPORT
   delete zstdos;
+#endif
   delete [] (rdr::U32 *) beforeBuf;
 }
 
@@ -145,6 +150,9 @@ else {
 	zywrle_level = 0;
 }
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+if (false) {
+#else
 if (m_use_zstd) {
 	switch (m_remoteformat.bitsPerPixel) {
 
@@ -212,6 +220,7 @@ if (m_use_zstd) {
 		}
 		break;
 	}
+#endif
 }
 else {
 	switch (m_remoteformat.bitsPerPixel) {
@@ -288,10 +297,17 @@ surh->r.x = Swap16IfLE(x - monitor_Offsetx);
 surh->r.y = Swap16IfLE(y - monitor_Offsety);
 surh->r.w = Swap16IfLE(w);
 surh->r.h = Swap16IfLE(h);
+#ifdef ULTRAVNC_VEYON_SUPPORT
+if (m_use_zywrle) 
+	surh->encoding = Swap32IfLE(rfbEncodingZYWRLE);
+else 
+	surh->encoding = Swap32IfLE(rfbEncodingZRLE);
+#else
 if (m_use_zywrle) 
 	surh->encoding = Swap32IfLE(m_use_zstd ? rfbEncodingZSTDYWRLE : rfbEncodingZYWRLE);
 else 
 	surh->encoding = Swap32IfLE(m_use_zstd ? rfbEncodingZSTDRLE : rfbEncodingZRLE);
+#endif
 
 rfbZRLEHeader* hdr = (rfbZRLEHeader*)(dest +
 	sz_rfbFramebufferUpdateRectHeader);

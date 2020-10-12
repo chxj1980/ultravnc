@@ -35,7 +35,11 @@ class vncEncodeUltra;
 #pragma once
 
 #include "vncencoder.h"
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include <lzo/lzo1x.h>
+#else
 #include "lzo/minilzo.h"
+#endif
 
 // Minimum Ultra rectangle size in bytes.  Anything smaller will
 // not compress well due to overhead.

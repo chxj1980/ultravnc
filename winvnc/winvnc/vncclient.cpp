@@ -64,7 +64,9 @@
 
 #ifdef _INTERNALLIB
 #include <zlib.h>
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #include <zstd.h>
+#endif
 #else
 #include "../zlib/zlib.h"
 #include "../zstd-1.4.4/lib/zstd.h"
@@ -95,6 +97,7 @@ extern bool PreConnect;
 int PreConnectID = 0;
 extern BOOL	m_fRunningFromExternalService;
 
+#ifdef FILETRANSFER_SUPPORT
 // take a full path & file name, split it, prepend prefix to filename, then merge it back
 static std::string make_temp_filename(const char *szFullPath)
 {
@@ -163,6 +166,7 @@ bool replaceFile(const char *src, const char *dst)
 
     return status;
 }
+#endif
 #include "Localization.h" // Act : add localization on messages
 typedef BOOL (WINAPI *PGETDISKFREESPACEEX)(LPCSTR,PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER);
 
@@ -251,6 +255,7 @@ void SplitTransferredFileNameAndDate(char *szFileAndDate, char *filetime)
 }
 
 
+#ifdef FILETRANSFER_SUPPORT
 /*
  * File transfer event hooks
  *
@@ -325,6 +330,7 @@ void vncClient::FTRenameHook(std::string oldName, std::string newname)
 {
 }
 
+#endif
 
 
 class vncClientUpdateThread : public omni_thread
@@ -447,7 +453,12 @@ vncClientUpdateThread::EnableUpdates(BOOL enable)
 
 	// give bad results with java
 	//if (enable)
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		if (!m_sync_sig->wait(5000))
+#else
+		// wait up to 60 seconds e.g. for completing permission dialogs
+		if (!m_sync_sig->wait(60000))
+#endif
 			vnclog.Print(LL_INTINFO, VNCLOG("wait timeout\n"));
 	/*if  (m_sync_sig->timedwait(now_sec+1,0)==0)
 		{
@@ -488,8 +499,10 @@ vncClientUpdateThread::run_undetached(void *arg)
 								m_client->m_update_tracker.get_changed_region().intersect(m_client->m_incr_rgn).is_empty() &&
 								m_client->m_update_tracker.get_copied_region().intersect(m_client->m_incr_rgn).is_empty() &&
 								m_client->m_update_tracker.get_cached_region().intersect(m_client->m_incr_rgn).is_empty() &&
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 								// adzm - 2010-07 - Extended clipboard
 								!(m_client->m_clipboard.m_bNeedToProvide || m_client->m_clipboard.m_bNeedToNotify) &&
+#endif
 								!m_client->m_cursor_pos_changed // nyama/marscha - PointerPos
 								))) {
 					// Issue the synchronisation signal, to tell other threads
@@ -505,8 +518,10 @@ vncClientUpdateThread::run_undetached(void *arg)
 							m_client->m_update_tracker.get_copied_region().intersect(m_client->m_incr_rgn).is_empty() &&
 							m_client->m_update_tracker.get_cached_region().intersect(m_client->m_incr_rgn).is_empty() &&
 							!m_client->m_encodemgr.IsCursorUpdatePending() &&
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 							// adzm - 2010-07 - Extended clipboard
 							!(m_client->m_clipboard.m_bNeedToProvide || m_client->m_clipboard.m_bNeedToNotify) &&
+#endif
 							!m_client->m_NewSWUpdateWaiting &&
 							!m_client->m_cursor_pos_changed // nyama/marscha - PointerPos
 							))) {
@@ -607,13 +622,18 @@ vncClientUpdateThread::run_undetached(void *arg)
 			// Also allow in loopbackmode
 			// Loopback mode with winvncviewer will cause a loping
 			// But ssh is back working		
+#ifdef FILETRANSFER_SUPPORT
 			if (!m_client->m_fFileSessionOpen) {
+#else
+			if (true) {
+#endif
 				bool bShouldFlush = false;
 
 				// adzm - 2010-07 - Extended clipboard
 				// send any clipboard data that should be sent automatically
 				if (m_client->m_clipboard.m_bNeedToProvide) {
 					m_client->m_clipboard.m_bNeedToProvide = false;
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 					if (m_client->m_clipboard.settings.m_bSupportsEx) {
 					
 						int actualLen = m_client->m_clipboard.extendedClipboardDataMessage.GetDataLength();
@@ -634,6 +654,9 @@ vncClientUpdateThread::run_undetached(void *arg)
 						if (!m_client->m_socket->SendExactQueue((char*)(m_client->m_clipboard.extendedClipboardDataMessage.GetData()), m_client->m_clipboard.extendedClipboardDataMessage.GetDataLength()))
 							m_client->m_socket->Close();
 					} 
+#else
+					if(0);
+#endif
 					else {
 						rfbServerCutTextMsg message;
 						memset(&message, 0, sizeof(rfbServerCutTextMsg));
@@ -665,13 +688,16 @@ vncClientUpdateThread::run_undetached(void *arg)
 							m_client->m_socket->Close();
 						delete[] unixtext;
 					}
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 					m_client->m_clipboard.extendedClipboardDataMessage.Reset();
+#endif
 				}
 			
 				// adzm - 2010-07 - Extended clipboard
 				// notify of any other formats
 				if (m_client->m_clipboard.m_bNeedToNotify) {
 					m_client->m_clipboard.m_bNeedToNotify = false;
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 					if (m_client->m_clipboard.settings.m_bSupportsEx) {
 					
 						int actualLen = m_client->m_clipboard.extendedClipboardDataNotifyMessage.GetDataLength();
@@ -694,6 +720,7 @@ vncClientUpdateThread::run_undetached(void *arg)
 							m_client->m_socket->Close();
 					}
 					m_client->m_clipboard.extendedClipboardDataNotifyMessage.Reset();
+#endif
 				}
 
 			if (bShouldFlush) 
@@ -868,19 +895,25 @@ vncClientThread::InitVersion()
 	if (m_major != rfbProtocolMajorVersion)
 		return FALSE;
 
+#ifdef AUTH_MS_LOGON_SUPPORT
 	m_ms_logon = m_server->MSLogonRequired();
 	vnclog.Print(LL_INTINFO, VNCLOG("m_ms_logon set to %s"), m_ms_logon ? "true" : "false");
+#endif
 
+#ifdef AUTH_ULTRA_SUPPORT
 	// adzm 2010-09 - see rfbproto.h for more discussion on all this
 	m_client->SetUltraViewer(false); // sf@2005 - Fix Open TextChat from server bug 
 	// UltraViewer will be set when viewer responds with rfbUltraVNC Auth type
 	// RDV 2010-6-10 
 	// removed SPECIAL_SC_PROMPT
+#endif
 	
+#ifdef DSM_SUPPORT
 	if ( (m_minor >= 7) && m_socket->IsUsePluginEnabled() && m_server->GetDSMPluginPointer()->IsEnabled() && m_socket->GetIntegratedPlugin() != NULL) {
 		m_socket->SetPluginStreamingIn();
 		m_socket->SetPluginStreamingOut();
 	}
+#endif
 
 	return TRUE;
 }
@@ -929,6 +962,9 @@ vncClientThread::InitGiiVersion()
 BOOL
 vncClientThread::FilterClients_Ask_Permission()
 {
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	return TRUE;
+#else
 	// Verify the peer host name against the AuthHosts string
 	vncServer::AcceptQueryReject verified;
 	if (m_auth) {
@@ -968,6 +1004,7 @@ vncClientThread::FilterClients_Ask_Permission()
 		return FALSE;
 	}
 	return TRUE;
+#endif
 }
 
 // RDV 2010-4-10
@@ -992,6 +1029,7 @@ vncClientThread::FilterClients_Blacklist()
 
 BOOL vncClientThread::CheckEmptyPasswd()
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	char password[MAXPWLEN];
 	m_server->GetPassword(password);
 	vncPasswd::ToText plain(password, m_server->Secure());
@@ -1003,6 +1041,7 @@ BOOL vncClientThread::CheckEmptyPasswd()
 					"Until a password is set, incoming connections cannot be accepted.");
 		return FALSE;
 	}
+#endif
 	return TRUE;
 }
 
@@ -1032,6 +1071,9 @@ vncClientThread::CheckLoopBack()
 				SendConnFailed("Local loop-back connections are disabled.");
 				return FALSE;
 			}
+#ifdef ULTRAVNC_VEYON_SUPPORT
+			return FALSE;
+#endif
 		}
 	}
 	else
@@ -1090,6 +1132,7 @@ void vncClientThread::LogAuthResult(bool success)
 	if (!success)
 	{
 		vnclog.Print(LL_CONNERR, VNCLOG("authentication failed\n"));
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		typedef BOOL (*LogeventFn)(char *machine);
 		LogeventFn Logevent = 0;
 		char szCurrentDir[MAX_PATH];
@@ -1107,9 +1150,13 @@ void vncClientThread::LogAuthResult(bool success)
 				Logevent((char *)m_client->GetClientName());
 				FreeLibrary(hModule);
 			}		
+#endif
 	}
 	else
 	{
+#ifdef ULTRAVNC_VEYON_SUPPORT
+		vnclog.Print(LL_INTINFO, VNCLOG("authentication succeeded\n"));
+#else
 		typedef BOOL (*LogeventFn)(char *machine);
 		LogeventFn Logevent = 0;
 		char szCurrentDir[MAX_PATH];
@@ -1127,6 +1174,7 @@ void vncClientThread::LogAuthResult(bool success)
 				Logevent((char *)m_client->GetClientName());
 				FreeLibrary(hModule);
 			}
+#endif
 	}
 }
 
@@ -1178,6 +1226,7 @@ vncClientThread::InitAuthenticate()
 				return FALSE;
 			}
 	}
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// adzm 2010-09
 	if (!(client_ini.flags & clientInitShared) && !m_shared)
 	{
@@ -1197,6 +1246,7 @@ vncClientThread::InitAuthenticate()
 			}
 		}
 	}
+#endif
 
 	vnclog.Print(LL_CLIENTS, VNCLOG("Leaving InitAuthenticate\n"));
 	// Tell the server that this client is ok
@@ -1211,15 +1261,24 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 	const bool bUseSessionSelect = false;
 	
 	// obviously needs to be one that we suggested in the first place
+#ifdef DSM_SUPPORT
 	bool bSecureVNCPluginActive = std::find(current_auth.begin(), current_auth.end(), rfbUltraVNC_SecureVNCPluginAuth_new) != current_auth.end();
+#endif
+#ifdef AUTH_SC_PROMP_SUPPORT
 	bool bSCPromptActive = std::find(current_auth.begin(), current_auth.end(), rfbUltraVNC_SCPrompt) != current_auth.end();
+#endif
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 	bool bSessionSelectActive = std::find(current_auth.begin(), current_auth.end(), rfbUltraVNC_SessionSelect) != current_auth.end();
+#endif
 
+#ifdef AUTH_ULTRA_SUPPORT
 	if (current_auth.empty()) {
 		// send the UltraVNC auth type to identify ourselves as an UltraVNC server, but only initially
 		auth_types.push_back(rfbUltraVNC);
 	}
+#endif
 
+#ifdef DSM_SUPPORT
 	// encryption takes priority over everything, for now at least.
 	// would be useful to have a host list to configure these settings.
 	// Include the SecureVNCPluginAuth type for those that support it but are not UltraVNC viewers
@@ -1228,16 +1287,23 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 		auth_types.push_back(rfbUltraVNC_SecureVNCPluginAuth_new);
 		auth_types.push_back(rfbUltraVNC_SecureVNCPluginAuth);		
 	}
+#else
+	if(0);
+#endif
+#ifdef AUTH_SC_PROMP_SUPPORT
 	else if ( (SPECIAL_SC_PROMPT || SPECIAL_SC_EXIT) && !bSCPromptActive ) 
 	{
 		// adzm 2010-10 - Add the SCPrompt pseudo-auth
 		auth_types.push_back(rfbUltraVNC_SCPrompt);
 	}
+#endif
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 	else if (bUseSessionSelect)
 	{
 		// adzm 2010-10 - Add the SessionSelect pseudo-auth
 		auth_types.push_back(rfbUltraVNC_SessionSelect);
 	}
+#endif
 	else
 	{			
 		// Retrieve the local password
@@ -1245,11 +1311,13 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 		m_server->GetPassword(password);
 		vncPasswd::ToText plain(password, m_server->Secure());
 
+#ifdef AUTH_MS_LOGON_SUPPORT
 		if (!m_auth && m_ms_logon)
 		{
 			auth_types.push_back(rfbUltraVNC_MsLogonIIAuth);
 		}
 		else
+#endif
 		{
 			if (m_auth || (strlen(plain) == 0))
 			{
@@ -1260,6 +1328,10 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 		}
 	}
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	auth_types.clear();
+	auth_types.push_back(rfbVncAuth);
+#endif
 	// adzm 2010-09 - Send the auths
 	{
 		CARD8 authCount = (CARD8)auth_types.size();
@@ -1295,10 +1367,13 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 	std::string auth_message;
 	switch (auth_accepted)
 	{
+#ifdef AUTH_ULTRA_SUPPORT
 	case rfbUltraVNC:
 		m_client->SetUltraViewer(true);
 		auth_success = true;
 		break;
+#endif
+#ifdef DSM_SUPPORT
 	case rfbUltraVNC_SecureVNCPluginAuth_new:
 		auth_success = AuthSecureVNCPlugin(auth_message);	
 		break;
@@ -1307,23 +1382,30 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 		auth_success = 0;
 		version_warning = 1;
 		break;
+#endif
+#ifdef AUTH_MS_LOGON_SUPPORT
 	case rfbUltraVNC_MsLogonIIAuth:
 		auth_success = AuthMsLogon(auth_message);
 		break;
+#endif
 	case rfbVncAuth:
 		auth_success = AuthVnc(auth_message);
 		break;
 	case rfbNoAuth:
 		auth_success = TRUE;
 		break;
+#ifdef AUTH_SC_PROMP_SUPPORT
 	case rfbUltraVNC_SCPrompt:
 		// adzm 2010-10 - Do the SCPrompt auth
 		auth_success = AuthSCPrompt(auth_message);
 		break;
+#endif
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 	case rfbUltraVNC_SessionSelect:
 		// adzm 2010-10 - Do the SessionSelect auth
 		auth_success = AuthSessionSelect(auth_message);
 		break;
+#endif
 	default:
 		auth_success = FALSE;
 		break;
@@ -1333,20 +1415,28 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 
 	// Return the result
 	CARD32 auth_result = rfbVncAuthFailed;
-	if (auth_success==1) {
+	if (auth_success) {
 		current_auth.push_back(auth_accepted);
 
 		// continue the authentication if mslogon is enabled. any method of authentication should
 		// work out fine with this method. Currently we limit ourselves to only one layer beyond
 		// the plugin to avoid deep recursion, but that can easily be changed if necessary.
+#ifdef DSM_SUPPORT
 		if (m_ms_logon && auth_accepted == rfbUltraVNC_SecureVNCPluginAuth_new && m_socket->GetIntegratedPlugin()) {
 			auth_result = rfbVncAuthContinue;
+#else
+		if(0){
+#endif
 		} else if (auth_accepted == rfbUltraVNC) {
 			auth_result = rfbVncAuthContinue;
+#ifdef AUTH_SC_PROMP_SUPPORT
 		} else if ( (SPECIAL_SC_PROMPT || SPECIAL_SC_EXIT) && !bSCPromptActive) {
 			auth_result = rfbVncAuthContinue;
+#endif
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 		} else if (bUseSessionSelect && !bSessionSelectActive) {
 			auth_result = rfbVncAuthContinue;
+#endif
 		} else {
 			auth_result = rfbVncAuthOK;
 		}
@@ -1382,9 +1472,11 @@ BOOL vncClientThread::AuthenticateClient(std::vector<CARD8>& current_auth)
 	/*if ((auth_success || auth_accepted == rfbUltraVNC_SecureVNCPluginAuth) && (auth_accepted == rfbUltraVNC_SecureVNCPluginAuth_new || auth_accepted == rfbUltraVNC_SecureVNCPluginAuth) && m_socket->GetIntegratedPlugin()) {			
 		m_socket->GetIntegratedPlugin()->SetHandshakeComplete();	
 	}*/
+#ifdef DSM_SUPPORT
 	if ((auth_success || auth_accepted == rfbUltraVNC_SecureVNCPluginAuth) && ( auth_accepted == rfbUltraVNC_SecureVNCPluginAuth) && m_socket->GetIntegratedPlugin()) {			
 		m_socket->GetIntegratedPlugin()->SetHandshakeComplete();	
 	}
+#endif
 
 	// Send a failure reason	
 	if (!auth_success && !version_warning) {
@@ -1437,14 +1529,20 @@ BOOL vncClientThread::AuthenticateLegacyClient()
 
 	CARD32 auth_type = rfbInvalidAuth;
 
+#ifdef DSM_SUPPORT
 	if (m_socket->IsUsePluginEnabled() && m_server->GetDSMPluginPointer()->IsEnabled() && m_socket->GetIntegratedPlugin() != NULL)
 	{
 		auth_type = rfbLegacy_SecureVNCPlugin;
 	}
+#else
+	if(0);
+#endif
+#ifdef AUTH_MS_LOGON_SUPPORT
 	else if (m_ms_logon)
 	{
 		auth_type = rfbLegacy_MsLogon;
 	}
+#endif
 	else if (strlen(plain) > 0)
 	{
 		auth_type = rfbVncAuth;
@@ -1475,6 +1573,7 @@ BOOL vncClientThread::AuthenticateLegacyClient()
 	std::string auth_message;
 	switch (auth_type)
 	{
+#ifdef DSM_SUPPORT
 	case rfbLegacy_SecureVNCPlugin:
 		auth_success = AuthSecureVNCPlugin(auth_message);	
 		// adzm 2010-11 - Legacy 1.0.8.2 special build will continue here with mslogon
@@ -1492,9 +1591,12 @@ BOOL vncClientThread::AuthenticateLegacyClient()
 			auth_success = AuthMsLogon(auth_message);
 		}
 		break;
+#endif
+#ifdef AUTH_MS_LOGON_SUPPORT
 	case rfbLegacy_MsLogon:
 		auth_success = AuthMsLogon(auth_message);
 		break;
+#endif
 	case rfbVncAuth:
 		auth_success = AuthVnc(auth_message);
 		break;
@@ -1522,10 +1624,12 @@ BOOL vncClientThread::AuthenticateLegacyClient()
 		return FALSE;
 	}
 	
+#ifdef DSM_SUPPORT
 	//adzm 2010-09 - Set handshake complete if integrated plugin finished auth
 	if (auth_success && auth_type == rfbLegacy_SecureVNCPlugin && m_socket->GetIntegratedPlugin()) {			
 		m_socket->GetIntegratedPlugin()->SetHandshakeComplete();
 	}
+#endif
 
 	if (auth_success) {
 		return TRUE;
@@ -1534,6 +1638,7 @@ BOOL vncClientThread::AuthenticateLegacyClient()
 	}
 }
 
+#ifdef DSM_SUPPORT
 // must SetHandshakeComplete after sending auth result!
 BOOL vncClientThread::AuthSecureVNCPlugin(std::string& auth_message)
 {
@@ -1718,7 +1823,9 @@ BOOL vncClientThread::AuthSecureVNCPlugin_old(std::string& auth_message)
 		return FALSE;
 	}
 }
+#endif
 
+#ifdef AUTH_MS_LOGON_SUPPORT
 // marscha@2006: Try to better hide the windows password.
 // I know that this is no breakthrough in modern cryptography.
 // It's just a patch/kludge/workaround.
@@ -1761,12 +1868,17 @@ vncClientThread::AuthMsLogon(std::string& auth_message)
 		return FALSE;
 	}
 }
+#endif
 
 BOOL vncClientThread::AuthVnc(std::string& auth_message)
 {
 	char password[MAXPWLEN];
 	m_server->GetPassword(password);
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	char* plain = password;
+#else
 	vncPasswd::ToText plain(password, m_server->Secure());
+#endif
 
 	BOOL auth_ok = FALSE;
 	{
@@ -1842,6 +1954,7 @@ BOOL vncClientThread::AuthVnc(std::string& auth_message)
 	}
 }
 
+#ifdef AUTH_SC_PROMP_SUPPORT
 // adzm 2010-10
 BOOL vncClientThread::AuthSCPrompt(std::string& auth_message)
 {
@@ -1867,7 +1980,9 @@ BOOL vncClientThread::AuthSCPrompt(std::string& auth_message)
 		return TRUE;
 	}
 }
+#endif
 
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 BOOL vncClientThread::AuthSessionSelect(std::string& auth_message)
 {
 	return TRUE;
@@ -1902,6 +2017,7 @@ BOOL vncClientThread::AuthSessionSelect(std::string& auth_message)
 	}
 	*/
 }
+#endif
 
 void
 ClearKeyState(BYTE key)
@@ -2068,6 +2184,7 @@ bool vncClientThread::InitSocket()
 		vnclog.Print(LL_INTERR, VNCLOG("failed to set socket timeout(%d)\n"), GetLastError());
 	}
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSM Plugin - Tell the client's socket where to find the DSMPlugin 
 	if (m_server->GetDSMPluginPointer() != NULL)
 	{
@@ -2112,6 +2229,7 @@ bool vncClientThread::InitSocket()
 		// TODO: Make a more secured challenge (with time stamp)
 	}
 	else
+#endif
 		m_client->m_encodemgr.EnableQueuing(true);
 
 	return true;
@@ -2225,8 +2343,11 @@ vncClientThread::run(void *arg)
 
 			szInfo[255] = '\0';
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 			if (m_client->m_outgoing) vncMenu::NotifyBalloon(szInfo, NULL);
+#endif
 		}
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		// wa@2005 - AutoReconnection attempt if required
 		if (m_client->m_Autoreconnect && !fShutdownOrdered)
 		{
@@ -2248,6 +2369,7 @@ vncClientThread::run(void *arg)
 			vncService::PostAddNewClient(1111, 1111);
 #endif
 		}
+#endif
 		m_server->RemoveClient(m_client->GetClientId());
 		return;
 	}
@@ -2258,7 +2380,11 @@ vncClientThread::run(void *arg)
 	if (!InitAuthenticate())
 	{
 		m_server->RemoveClient(m_client->GetClientId());
+#ifdef ULTRAVNC_VEYON_SUPPORT
+		return;
+#else
 		goto testautoreconnect;
+#endif
 	}
 
 	// Authenticated OK - remove from blacklist and remove timeout
@@ -2389,15 +2515,19 @@ vncClientThread::run(void *arg)
     bool need_ft_version_msg =  false;
 	// adzm - 2010-07 - Extended clipboard
 	bool need_notify_extended_clipboard = false;
+#ifdef DSM_SUPPORT
 	// adzm 2010-09 - Notify streaming DSM plugin support
 	bool need_notify_streaming_DSM = false;
+#endif
 
 	while (m_client->cl_connected)
 	{
 		rfbClientToServerMsg msg;
 
+#ifdef FILETRANSFER_SUPPORT
 		// Ensure that we're running in the correct desktop
 		if (!m_client->IsFileTransBusy())
+#endif
 		// This desktop switch is responsible for the keyboard input
 		if (vncService::InputDesktopSelected()==0)
 		{
@@ -2405,6 +2535,7 @@ vncClientThread::run(void *arg)
 			if (!vncService::SelectDesktop(NULL, &input_desktop)) 
 					break;
 		}
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		// added jeff
         // 2 May 2008 jdp paquette@atnetsend.net moved so that we're on the right desktop  when we're a service
 	    // Clear the CapsLock and NumLock keys
@@ -2416,6 +2547,7 @@ vncClientThread::run(void *arg)
 		    ClearKeyState(VK_SCROLL);
             need_to_clear_keyboard = false;
 	    }
+#endif
         //
         if (need_to_disable_input)
         {
@@ -2428,6 +2560,7 @@ vncClientThread::run(void *arg)
         m_client->m_encodemgr.m_buffer->m_desktop->block_input(firstrun);
 		firstrun=false;
 
+#ifdef KEEP_ALIVE_SUPPORT
         if (need_first_keepalive)
         {
             // send first keepalive to let the client know we accepted the encoding request
@@ -2439,7 +2572,9 @@ vncClientThread::run(void *arg)
 			m_client->SendKeepAlive(true);
 			need_keepalive = false;
 		}
+#endif
 
+#ifdef SERVER_STATE_SUPPORT
 		if (need_first_idletime)
 		{
 			// send idletime to let the client know we accepted the encoding request
@@ -2457,26 +2592,34 @@ vncClientThread::run(void *arg)
 					OutputDebugString(szText);		
 #endif
 		}
+#endif
+#ifdef FILETRANSFER_SUPPORT
         if (need_ft_version_msg)
         {
             // send a ft protocol message to client.
             m_client->SendFTProtocolMsg();
             need_ft_version_msg = false;
         }
+#endif
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 		// adzm - 2010-07 - Extended clipboard
 		if (need_notify_extended_clipboard)
 		{
 			m_client->NotifyExtendedClipboardSupport();
 			need_notify_extended_clipboard = false;
 		}
+#endif
+#ifdef DSM_SUPPORT
 		// adzm 2010-09 - Notify streaming DSM plugin support
 		if (need_notify_streaming_DSM)
 		{
 			m_client->NotifyPluginStreamingSupport();
 			need_notify_streaming_DSM = false;
 		}
+#endif
 		// sf@2002 - v1.1.2
 		int nTO = 1; // Type offset
+#ifdef DSM_SUPPORT
 		// If DSM Plugin, we must read all the transformed incoming rfb messages (type included)
 		// adzm 2010-09
 		if (!m_socket->IsPluginStreamingIn() && m_socket->IsUsePluginEnabled() && m_server->GetDSMPluginPointer()->IsEnabled())
@@ -2489,6 +2632,7 @@ vncClientThread::run(void *arg)
 		    nTO = 0;
 		}
 		else
+#endif
 		{
 			// Try to read a message ID
 			if (!m_socket->ReadExact((char *)&msg.type, sizeof(msg.type)))
@@ -2506,9 +2650,11 @@ vncClientThread::run(void *arg)
 		switch(msg.type)
 		{
 
+#ifdef KEEP_ALIVE_SUPPORT
         case rfbKeepAlive:
 				need_keepalive = true;
             break;
+#endif
 
 		case rfbSetPixelFormat:
 			// Read the rest of the message:
@@ -2623,14 +2769,14 @@ vncClientThread::run(void *arg)
 						continue;
 					}
 
-
+#ifndef ULTRAVNC_VEYON_SUPPORT
 					// XOR zlib
 					if (Swap32IfLE(encoding) == rfbEncodingQueueEnable) {
 						m_client->m_encodemgr.AvailableQueueEnabled(TRUE);
 						vnclog.Print(LL_INTINFO, VNCLOG("XOR protocol extension enabled\n"));
 						continue;
 					}
-
+#endif
 
 					// Is this a CompressLevel encoding?
 					if ((Swap32IfLE(encoding) >= rfbEncodingCompressLevel0) &&
@@ -2705,6 +2851,7 @@ vncClientThread::run(void *arg)
 						vnclog.Print(LL_INTINFO, VNCLOG("PointerPos protocol extension enabled\n"));
 						continue;
 					}
+#ifdef SERVER_STATE_SUPPORT
 					// 21 March 2008 jdp - client wants server state updates
 					if (Swap32IfLE(encoding) == rfbEncodingServerState) {
 						m_client->m_wants_ServerStateUpdates = true;
@@ -2718,7 +2865,9 @@ vncClientThread::run(void *arg)
 						vnclog.Print(LL_INTINFO, VNCLOG("KeepAlive protocol extension enabled\n"));
                         continue;
 					}
+#endif
 
+#ifdef KEEP_ALIVE_SUPPORT
 					if (Swap32IfLE(encoding) == rfbEncodingEnableKeepAlive) {
 						m_client->m_wants_KeepAlive = true;
                         m_server->EnableKeepAlives(true);
@@ -2726,19 +2875,25 @@ vncClientThread::run(void *arg)
 						vnclog.Print(LL_INTINFO, VNCLOG("KeepAlive protocol extension enabled\n"));
                         continue;
 					}
+#endif
 					
+#ifdef SERVER_STATE_SUPPORT
 					if (Swap32IfLE(encoding) == rfbEncodingEnableIdleTime) {
 						need_first_idletime = true;
 						vnclog.Print(LL_INTINFO, VNCLOG("IdleTime protocol extension enabled\n"));
 						continue;
 						}
+#endif
 
+#ifdef FILETRANSFER_SUPPORT
 					if (Swap32IfLE(encoding) == rfbEncodingFTProtocolVersion) {
                         need_ft_version_msg = true;
 						vnclog.Print(LL_INTINFO, VNCLOG("FTProtocolVersion protocol extension enabled\n"));
                         continue;
 					}
+#endif
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 					// adzm - 2010-07 - Extended clipboard
 					if (Swap32IfLE(encoding) == rfbEncodingExtendedClipboard) {
 						need_notify_extended_clipboard = true;
@@ -2746,13 +2901,16 @@ vncClientThread::run(void *arg)
 						vnclog.Print(LL_INTINFO, VNCLOG("Extended clipboard protocol extension enabled\n"));
 						continue;
 					}
+#endif
 
+#ifdef DSM_SUPPORT
 					// adzm 2010-09 - Notify streaming DSM plugin support
 					if (Swap32IfLE(encoding) == rfbEncodingPluginStreaming) {
 						need_notify_streaming_DSM = true;
 						vnclog.Print(LL_INTINFO, VNCLOG("Streaming DSM support enabled\n"));
 						continue;
 					}
+#endif
 
 					// RDV - We try to detect which type of viewer tries to connect
 					if (Swap32IfLE(encoding) == rfbEncodingZRLE) {
@@ -3424,6 +3582,7 @@ vncClientThread::run(void *arg)
 				int length = Swap32IfLE(msg.cct.length);
 				if (length > 104857600) // 100 MBytes max
 					break;
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 				if (length < 0 && m_client->m_clipboard.settings.m_bSupportsEx) {
 
 					length = abs(length);
@@ -3468,6 +3627,9 @@ vncClientThread::run(void *arg)
 							// unsupported or not implemented
 							break;
 					}
+#else
+				if(0 ) {
+#endif
 				} else if (length >= 0) {
 					char* winStr = NULL;
 					{
@@ -3587,21 +3749,18 @@ vncClientThread::run(void *arg)
 				/// fix by PGM (pgmoney)
 				if (!m_server->GetDesktopPointer()->GetBlockInputState() && msg.sim.status==1) 
 					{ 
-						CARD32 state = rfbServerState_Enabled; 
 						m_client->m_encodemgr.m_buffer->m_desktop->SetBlockInputState(true); 
 						m_client->m_bClientHasBlockedInput = (true);
 					} 
 
 				else if (m_server->GetDesktopPointer()->GetBlockInputState() && m_client->m_bClientHasBlockedInput && msg.sim.status==0)
 					{
-						CARD32 state = rfbServerState_Disabled; 
 						m_client->m_encodemgr.m_buffer->m_desktop->SetBlockInputState(FALSE);
 						m_client->m_bClientHasBlockedInput = (FALSE); 
 					} 
 
 				else if (!m_server->GetDesktopPointer()->GetBlockInputState() && !m_client->m_bClientHasBlockedInput && msg.sim.status==0)
 					{
-						CARD32 state = rfbServerState_Disabled; 
 						m_client->m_encodemgr.m_buffer->m_desktop->SetBlockInputState(FALSE);
 						m_client->m_bClientHasBlockedInput = (FALSE);
 					}
@@ -3627,12 +3786,14 @@ vncClientThread::run(void *arg)
 			break;
 
 
+#ifdef TEXT_CHAT_SUPPORT
 		// Modif sf@2002 - TextChat
 		case rfbTextChat:
 			m_client->m_pTextChat->ProcessTextChatMsg(nTO);
 			break;
+#endif
 
-
+#ifdef FILETRANSFER_SUPPORT
 		// Modif sf@2002 - FileTransfer
 		// File Transfer Message
 		case rfbFileTransfer:
@@ -4342,7 +4503,9 @@ vncClientThread::run(void *arg)
 			m_client->m_fFileTransferRunning = FALSE;
 			}
 			break;
+#endif
 
+#ifdef DSM_SUPPORT
 		// adzm 2010-09 - Notify streaming DSM plugin support
         case rfbNotifyPluginStreaming:
             if (sz_rfbNotifyPluginStreamingMsg > 1)
@@ -4355,17 +4518,21 @@ vncClientThread::run(void *arg)
             }
 			m_socket->SetPluginStreamingIn();
             break;
+#endif
+
 		default:
 			// Unknown message, so fail!
 			m_client->cl_connected = FALSE;
 		}
 
+#ifdef FILETRANSFER_SUPPORT
 		// sf@2005 - Cancel FT User impersonation if possible
 		// We do it here to ensure impersonation is cancelled
 		if (m_server->FTUserImpersonation())
 		{
 			m_client->UndoFTUserImpersonation();
 		}
+#endif
 
 	}
 
@@ -4376,6 +4543,7 @@ vncClientThread::run(void *arg)
 	}
 	
 
+#ifdef FILETRANSFER_SUPPORT
     if (m_client->m_fFileDownloadRunning)
     {
         m_client->m_fFileDownloadError = true;
@@ -4393,6 +4561,7 @@ vncClientThread::run(void *arg)
         m_client->m_fFileUploadRunning = false;
         helper::close_handle(m_client->m_hSrcFile);
     }
+#endif
 
   
 
@@ -4452,6 +4621,7 @@ vncClientThread::run(void *arg)
 	// updates
 	m_server->RemoveClient(m_client->GetClientId());
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// sf@2003 - AutoReconnection attempt if required
 	testautoreconnect:
 	if (!fShutdownOrdered) {
@@ -4469,6 +4639,7 @@ vncClientThread::run(void *arg)
 #endif
 		}
 	}
+#endif
 }
 
 // The vncClient itself
@@ -4478,7 +4649,9 @@ vncClient::vncClient() : m_clipboard(ClipboardSettings::defaultServerCaps), Send
 {
 	vnclog.Print(LL_INTINFO, VNCLOG("vncClient() executing...\n"));
 
+#ifdef FILETRANSFER_SUPPORT
     m_hPToken = 0;
+#endif
 
 	m_socket = NULL;
 	m_client_name = 0;
@@ -4515,6 +4688,7 @@ vncClient::vncClient() : m_clipboard(ClipboardSettings::defaultServerCaps), Send
 	// sf@2002 
 	fNewScale = false;
 	m_fPalmVNCScaling = false;
+#ifdef FILETRANSFER_SUPPORT
 	fFTRequest = false;
 
 	// Modif sf@2002 - FileTransfer
@@ -4545,6 +4719,7 @@ vncClient::vncClient() : m_clipboard(ClipboardSettings::defaultServerCaps), Send
 	m_lpCSBuffer = NULL;
 	m_nCSOffset = 0;
 	m_nCSBufferSize = 0;
+#endif
 
 	// CURSOR HANDLING
 	m_cursor_update_pending = FALSE;
@@ -4563,25 +4738,39 @@ vncClient::vncClient() : m_clipboard(ClipboardSettings::defaultServerCaps), Send
 	m_pCacheZipBuf = NULL;
 	m_nCacheZipBufSize = 0;
 
+#ifdef FILETRANSFER_SUPPORT
 	// sf@2005 - FTUserImpersonation
 	m_fFTUserImpersonatedOk = false;
 	m_lLastFTUserImpersonationTime = 0L;
+#endif
 
 	// Modif sf@2002 - Text Chat
+#ifdef TEXT_CHAT_SUPPORT
 	m_pTextChat = new TextChat(this); 	
+#endif
+#ifdef AUTH_ULTRA_SUPPORT
 	m_fUltraViewer = true;
+#endif
 	m_IsLoopback=false;
 	m_NewSWUpdateWaiting=false;
 	client_settings_passed=false;
 	initialCapture_done=false;
+#ifdef SERVER_STATE_SUPPORT
     m_wants_ServerStateUpdates =  false;
+#endif
     m_bClientHasBlockedInput = false;
+#ifdef SERVER_STATE_SUPPORT
 	m_Support_rfbSetServerInput = false;
+#endif
+#ifdef KEEP_ALIVE_SUPPORT
     m_wants_KeepAlive = false;
+#endif
 	m_session_supported = false;
+#ifdef FILETRANSFER_SUPPORT
     m_fFileSessionOpen = false;
 	m_pBuff = 0;
 	m_pCompBuff = 0;
+#endif
 	m_NewSWDesktop = 0;
 	NewsizeW = 0;
 	NewsizeH = 0;
@@ -4591,7 +4780,9 @@ vncClient::vncClient() : m_clipboard(ClipboardSettings::defaultServerCaps), Send
 	m_szRepeaterID = NULL; // as in, not using
 	m_szHost = NULL;
 	m_hostPort = 0;
+#ifdef SERVER_STATE_SUPPORT
 	m_want_update_state=false;
+#endif
 	m_initial_update=false;
 	m_nScale_viewer = 1;
 	nr_incr_rgn_empty = 0;
@@ -4604,6 +4795,7 @@ vncClient::~vncClient()
 	cl_connected = false;
 	vnclog.Print(LL_INTINFO, VNCLOG("~vncClient() executing...\n"));
 
+#ifdef TEXT_CHAT_SUPPORT
 	// Modif sf@2002 - Text Chat
 	if (m_pTextChat) 
 	{
@@ -4614,6 +4806,7 @@ vncClient::~vncClient()
 
 	// Directory FileTransfer utils
 	if (m_pZipUnZip) delete m_pZipUnZip;
+#endif
 
 	// We now know the thread is dead, so we can clean up
 	if (m_client_name != 0) {
@@ -4639,16 +4832,19 @@ vncClient::~vncClient()
 			delete [] m_pCacheZipBuf;
 			m_pCacheZipBuf = NULL;
 		}
+#ifdef FILETRANSFER_SUPPORT
 	if (m_lpCSBuffer)
 		delete [] m_lpCSBuffer;
 	if (m_pBuff)
 		delete [] m_pBuff;
 	if (m_pCompBuff)
 		delete [] m_pCompBuff;
+#endif
 
 	//thos give sometimes errors, hlogfile is already removed at this point
 	//vnclog.Print(LL_INTINFO, VNCLOG("cached %d \n"),totalraw);
 
+#ifdef AUTH_SC_PROMP_SUPPORT
 	if ((SPECIAL_SC_EXIT || (m_server->RunningFromExternalServiceRdp())) && !fShutdownOrdered) // if fShutdownOrdered, hwnd may not be valid
 	{
 		//adzm 2009-06-20 - if we are SC, only exit if no other viewers are connected!
@@ -4662,6 +4858,7 @@ vncClient::~vncClient()
 			if (hwnd) SendMessage(hwnd,WM_COMMAND,ID_CLOSE,0);
 		}
 	}
+#endif
 
 	// adzm 2009-07-05
 	if (m_szRepeaterID) {
@@ -4730,8 +4927,10 @@ vncClient::Kill(bool deleted)
 {
 	// Close the socket
 	vnclog.Print(LL_INTERR, VNCLOG("client Kill() called"));
+#ifdef TEXT_CHAT_SUPPORT
 	if (m_pTextChat)
         m_pTextChat->KillDialog();
+#endif
 	if (m_socket != NULL)
 		m_socket->Close();
 	if(deleted)
@@ -4916,6 +5115,7 @@ vncClient::UpdateClipText(const char* text)
 }
 */
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // adzm - 2010-07 - Extended clipboard
 void
 vncClient::UpdateClipTextEx(ClipboardData& clipboardData, CARD32 overrideFlags)
@@ -4928,6 +5128,7 @@ vncClient::UpdateClipTextEx(ClipboardData& clipboardData, CARD32 overrideFlags)
 		TriggerUpdateThread();
 	}
 }
+#endif
 
 void
 vncClient::UpdateCursorShape()
@@ -5345,6 +5546,7 @@ vncClient::SendRectangle(const rfb::Rect &rect)
 
 	//	Totalsend+=(ScaledRect.br.x-ScaledRect.tl.x)*(ScaledRect.br.y-ScaledRect.tl.y);
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - DSMPlugin
 	// Some encoders (Hextile, ZRLE, Raw..) store all the data to send into 
 	// m_clientbuffer and return the total size from EncodeRect()
@@ -5430,6 +5632,7 @@ vncClient::SendRectangle(const rfb::Rect &rect)
 		
 	}
 	else // Normal case - No DSM - Symetry is not important
+#endif
 	{
 		UINT bytes = m_encodemgr.EncodeRect(ScaledRect, m_socket);
 
@@ -5770,6 +5973,7 @@ void vncClient::TriggerUpdate()
 }
 
 
+#ifdef FILETRANSFER_SUPPORT
 ////////////////////////////////////////////////
 // Asynchronous & Delta File Transfer functions
 ////////////////////////////////////////////////
@@ -6516,7 +6720,9 @@ void vncClient::UndoFTUserImpersonation()
     if (m_hPToken) CloseHandle(m_hPToken);
     m_hPToken = 0;
 }
+#endif
 
+#ifdef SERVER_STATE_SUPPORT
 // 10 April 2008 jdp paquette@atnetsend.net
 // This can crash as we can not send middle in an update...
 
@@ -6546,7 +6752,9 @@ void vncClient::SendServerStateUpdate(CARD32 state, CARD32 value)
 		m_socket->SendExact((char*)&rsmsg, sz_rfbServerStateMsg, rfbServerState);
     }
 }
+#endif
 
+#ifdef KEEP_ALIVE_SUPPORT
 void vncClient::SendKeepAlive(bool bForce)
 {
     if (m_wants_KeepAlive && m_socket)
@@ -6565,7 +6773,9 @@ void vncClient::SendKeepAlive(bool bForce)
 		m_socket->SendExact((char*)&kp, sz_rfbKeepAliveMsg, rfbKeepAlive);
     }
 }
+#endif
 
+#ifdef FILETRANSFER_SUPPORT
 void vncClient::SendFTProtocolMsg()
 {
     rfbFileTransferMsg ft;
@@ -6576,7 +6786,9 @@ void vncClient::SendFTProtocolMsg()
     m_socket->SendExact((char *)&ft, sz_rfbFileTransferMsg, rfbFileTransfer);
 
 }
+#endif
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // adzm - 2010-07 - Extended clipboard
 void vncClient::NotifyExtendedClipboardSupport()
 {	
@@ -6592,7 +6804,9 @@ void vncClient::NotifyExtendedClipboardSupport()
 	m_socket->SendExactQueue((char *)&msg, sz_rfbServerCutTextMsg, rfbServerCutText);
 	m_socket->SendExact((char *)(extendedDataMessage.GetData()), extendedDataMessage.GetDataLength());
 }
+#endif
 
+#ifdef DSM_SUPPORT
 // adzm 2010-09 - Notify streaming DSM plugin support
 void vncClient::NotifyPluginStreamingSupport()
 {	
@@ -6604,7 +6818,9 @@ void vncClient::NotifyPluginStreamingSupport()
 	m_socket->SendExact((char *)&msg, sz_rfbNotifyPluginStreamingMsg, rfbNotifyPluginStreaming);
 	m_socket->SetPluginStreamingOut();
 }
+#endif
 
+#ifdef FILETRANSFER_SUPPORT
 DWORD WINAPI CompressFolder(LPVOID lpParam)
 {
 	vncClient *client = (vncClient *)lpParam;
@@ -6779,3 +6995,4 @@ int  vncClient::filetransferrequestPart2(int nDirZipRet)
 	ThreadHandleCompressFolder = NULL;
 	return 0;
 }
+#endif

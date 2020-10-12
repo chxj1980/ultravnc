@@ -41,7 +41,9 @@ public:
 
 private:
   rdr::ZlibOutStream* zos;
+#ifndef ULTRAVNC_VEYON_SUPPORT
   rdr::ZstdOutStream* zstdos;
+#endif
   rdr::MemOutStream* mos;
   void* beforeBuf;
 };

@@ -71,6 +71,9 @@ vncPropertiesPoll::Init(vncServer *server)
 	m_server = server;	
 
 	// sf@2007 - Registry mode can still be forced for backward compatibility and OS version < Vista
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	Load(TRUE);
+#else
 	m_fUseRegistry = ((myIniFile.ReadInt("admin", "UseRegistry", 0) == 1) ? TRUE : FALSE);
 
 	// Load the settings
@@ -78,10 +81,12 @@ vncPropertiesPoll::Init(vncServer *server)
 		Load(TRUE);
 	else
 		LoadFromIniFile();
+#endif
 
 	return TRUE;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 // Dialog box handling functions
 void
 vncPropertiesPoll::Show(BOOL show, BOOL usersettings)
@@ -513,8 +518,12 @@ vncPropertiesPoll::DialogProcPoll(HWND hwnd,
 	return 0;
 }
 
+#endif
 
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+extern BOOL ultravnc_veyon_load_int( LPCSTR valname, LONG *out );
+#endif
 
 // Functions to load & save the settings
 LONG
@@ -524,6 +533,14 @@ vncPropertiesPoll::LoadInt(HKEY key, LPCSTR valname, LONG defval)
 	ULONG type = REG_DWORD;
 	ULONG prefsize = sizeof(pref);
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	LONG out;
+	if( ultravnc_veyon_load_int( valname, &out ) )
+	{
+		return out;
+	}
+	return defval;
+#endif
 	if (RegQueryValueEx(key,
 		valname,
 		NULL,
@@ -541,6 +558,7 @@ vncPropertiesPoll::LoadInt(HKEY key, LPCSTR valname, LONG defval)
 	return pref;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncPropertiesPoll::LoadSingleWindowName(HKEY key, char *buffer)
 {
@@ -666,6 +684,7 @@ LABELUSERSETTINGS:
 		}
 
 }
+#endif
 
 void
 vncPropertiesPoll::Load(BOOL usersettings)
@@ -674,9 +693,12 @@ vncPropertiesPoll::Load(BOOL usersettings)
 //		vnclog.Print(LL_INTWARN, VNCLOG("service helper invoked while Properties panel displayed\n"));
 //		return;
 //	}
+
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	ResetRegistry();
 	
 	char username[UNLEN+1];
+#endif
 	HKEY hkLocal, hkLocalUser, hkDefault;
 	DWORD dw;
 	
@@ -689,6 +711,11 @@ vncPropertiesPoll::Load(BOOL usersettings)
 
 	// GET THE CORRECT KEY TO READ FROM
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	hkLocal = nullptr;
+	hkLocalUser = nullptr;
+	hkDefault = nullptr;
+#else
 	// Get the user name / service name
 	if (!vncService::CurrentUser((char *)&username, sizeof(username)))
 		return;
@@ -725,6 +752,7 @@ vncPropertiesPoll::Load(BOOL usersettings)
 		&dw) != ERROR_SUCCESS)
 		hkDefault = NULL;
 
+#endif
 
 LABELUSERSETTINGS:
 	// LOAD THE USER PREFERENCES
@@ -738,6 +766,7 @@ LABELUSERSETTINGS:
 	m_pref_PollConsoleOnly=FALSE;
 	m_pref_PollOnEventOnly=FALSE;
 	m_pref_MaxCpu=40;
+	m_pref_DeskDupEngine=true;
 	m_pref_Driver=CheckVideoDriver(0);
 	m_pref_Hook=TRUE;
 	m_pref_Virtual=FALSE;
@@ -748,13 +777,16 @@ LABELUSERSETTINGS:
 	*m_pref_szSingleWindowName = '\0';
 
 	// Load the local prefs for this user
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (hkDefault != NULL)
+#endif
 	{
 		vnclog.Print(LL_INTINFO, VNCLOG("loading DEFAULT local settings\n"));
 		LoadUserPrefsPoll(hkDefault);
 	}
 
 	
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (m_usersettings) {
 		// We want the user settings, so load them!
 
@@ -787,6 +819,7 @@ LABELUSERSETTINGS:
 	if (hkLocalUser != NULL) RegCloseKey(hkLocalUser);
 	if (hkDefault != NULL) RegCloseKey(hkDefault);
 	if (hkLocal != NULL) RegCloseKey(hkLocal);
+#endif
 
 	// Make the loaded settings active..
 	ApplyUserPrefs();
@@ -808,13 +841,16 @@ vncPropertiesPoll::LoadUserPrefsPoll(HKEY appkey)
 	m_pref_PollOnEventOnly=LoadInt(appkey, "OnlyPollOnEvent", m_pref_PollOnEventOnly);
 	m_pref_MaxCpu=LoadInt(appkey, "MaxCpu", m_pref_MaxCpu);
 	if (m_pref_MaxCpu==0) m_pref_MaxCpu=100;
+	m_pref_DeskDupEngine=LoadInt(appkey, "DeskDupEngine", m_pref_DeskDupEngine);
 	m_pref_Driver=LoadInt(appkey, "EnableDriver", m_pref_Driver);
 	if (m_pref_Driver)m_pref_Driver=CheckVideoDriver(0);
 	m_pref_Hook=LoadInt(appkey, "EnableHook", m_pref_Hook);
 	m_pref_Virtual=LoadInt(appkey, "EnableVirtual", m_pref_Virtual);
 	// [v1.0.2-jp2 fix]
 	m_pref_SingleWindow=LoadInt(appkey, "SingleWindow", m_pref_SingleWindow);
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	LoadSingleWindowName(appkey, m_pref_szSingleWindowName);
+#endif
 	m_pref_autocapt=LoadInt(appkey, "autocapt", m_pref_autocapt);
 
 }
@@ -833,6 +869,7 @@ vncPropertiesPoll::ApplyUserPrefs()
 	m_server->PollConsoleOnly(m_pref_PollConsoleOnly);
 	m_server->PollOnEventOnly(m_pref_PollOnEventOnly);
 	m_server->MaxCpu(m_pref_MaxCpu);	
+	m_server->DeskDupEngine(m_pref_DeskDupEngine);
 	if (CheckVideoDriver(0) && m_pref_Driver) m_server->Driver(m_pref_Driver);
 	else m_server->Driver(false);
 	m_server->Hook(m_pref_Hook);
@@ -841,6 +878,7 @@ vncPropertiesPoll::ApplyUserPrefs()
 
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncPropertiesPoll::SaveInt(HKEY key, LPCSTR valname, LONG val)
 {
@@ -1027,3 +1065,4 @@ void vncPropertiesPoll::SaveUserPrefsPollToIniFile()
 	int test = m_server->AutoCapt();
 	myIniFile.WriteInt("poll", "autocapt", m_server->AutoCapt());	
 }
+#endif

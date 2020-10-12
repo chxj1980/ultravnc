@@ -4,7 +4,9 @@
 
 #ifdef _INTERNALLIB
 #include <zlib.h>
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #include <zstd.h>
+#endif
 #else
 #include "../zlib/zlib.h"
 #include "../zstd-1.4.4/lib/zstd.h"
@@ -15,11 +17,15 @@ class UltraVncZ
 public:
 	UltraVncZ();
 	~UltraVncZ();
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	UINT compressZstd(int compresslevel, UINT avail_in, UINT avail_out, BYTE * next_in, BYTE *next_out);
+#endif
 	UINT compressZlib(int compresslevel, UINT avail_in, UINT avail_out, BYTE * next_in, BYTE *next_out);
 	UINT compress(int compresslevel, UINT avail_in, UINT avail_out, BYTE * next_in, BYTE *next_out);
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	int decompressZstd(UINT &avail_in, UINT &avail_out, BYTE * next_in, BYTE *next_out);
+#endif
 	int decompressZlib(UINT &avail_in, UINT &avail_out, BYTE * next_in, BYTE *next_out);
 	int decompress(UINT &avail_in, UINT &avail_out, BYTE * next_in, BYTE *next_out, bool zstd);
 
@@ -36,6 +42,7 @@ protected:
 	bool compStreamInitedZstd;
 	bool decompStreamInitedZstd;
 	UINT MAX_SIZE;
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	bool use_zstd;
 
 	ZSTD_CStream* cstream;
@@ -45,6 +52,7 @@ protected:
 	ZSTD_DStream* dstream;
 	ZSTD_outBuffer* outBufferD;
 	ZSTD_inBuffer* inBufferD;
+#endif
 
 	int compresslevel;
 	/*void createCDict(int cLevel, ZSTD_CStream* cstream);

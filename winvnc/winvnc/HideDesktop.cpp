@@ -23,18 +23,18 @@
 ////////////////////////////////////////////////////////////////////////////
 #include "stdhdrs.h"
 #define WIN32_LEAN_AND_MEAN
-//#include <shlwapi.h>
+#include <shlwapi.h>
 #include <tchar.h>
 #include <windows.h>
 #include <wininet.h> // Shell object uses INTERNET_MAX_URL_LENGTH (go figure)
 #if !__GNUC__ && _MSC_VER < 1400
 #define _WIN32_IE 0x0400
 #endif
+#undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0A00
 #define _ATL_APARTMENT_THREADED
 #define _USING_V110_SDK71_
 #define _ATL_XP_TARGETING
-#include <atlbase.h> // ATL smart pointers
 #include <shlguid.h> // shell GUIDs
 #include <shlobj.h>  // IActiveDesktop
 #include "stdhdrs.h"
@@ -117,6 +117,7 @@ BOOL SHDesktopHTML()
 static 
 HRESULT EnableActiveDesktop(bool enable)
 {
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	CoInitialize(NULL);
 	CComQIPtr<IActiveDesktop, &IID_IActiveDesktop>	pIActiveDesktop;
 	
@@ -140,6 +141,9 @@ HRESULT EnableActiveDesktop(bool enable)
 	hr = pIActiveDesktop->ApplyChanges(AD_APPLY_REFRESH);
 	CoUninitialize();
 	return hr;
+#else
+	return 0;
+#endif
 }
 
 bool HideActiveDesktop()
@@ -291,7 +295,7 @@ void DisableEffects()
 		}
 		for (iParam = 0; iParam < (sizeof(spiParams) / sizeof(spiParams[0])); iParam++) {
 			if (spiValues[iParam] != (BOOL) spiSuggested[iParam]) {
-				if (!SystemParametersInfo(spiParams[iParam]+1, 0, (PVOID)spiSuggested[iParam], SPIF_SENDCHANGE)) {				
+				if (!SystemParametersInfo(spiParams[iParam]+1, 0, reinterpret_cast<PVOID>(spiSuggested[iParam]), SPIF_SENDCHANGE)) {
 					vnclog.Print(LL_INTWARN, VNCLOG("Failed to set SPI value for 0x%04x to 0x%08x (0x%08x)\n"), spiParams[iParam]+1, spiSuggested[iParam], GetLastError());
 				} else {
 					vnclog.Print(LL_INTINFO, VNCLOG("Set SPI value for 0x%04x to 0x%08x\n"), spiParams[iParam]+1, spiSuggested[iParam]);
@@ -308,7 +312,7 @@ void EnableEffects()
 		int iParam = 0;
 		for (iParam = 0; iParam < (sizeof(spiParams) / sizeof(spiParams[0])); iParam++) {
 			if (spiValues[iParam] != (BOOL) spiSuggested[iParam]) {
-				if (!SystemParametersInfo(spiParams[iParam]+1, 0, (PVOID)spiValues[iParam], SPIF_SENDCHANGE)) {
+				if (!SystemParametersInfo(spiParams[iParam]+1, 0, reinterpret_cast<PVOID>(spiValues[iParam]), SPIF_SENDCHANGE)) {
 					vnclog.Print(LL_INTWARN, VNCLOG("Failed to restore SPI value for 0x%04x (0x%08x)\n"), spiParams[iParam]+1, GetLastError());
 				} else {
 					vnclog.Print(LL_INTINFO, VNCLOG("Restored SPI value for 0x%04x to 0x%08x\n"), spiParams[iParam]+1, spiValues[iParam]);
@@ -371,7 +375,7 @@ void DisableFontSmoothing()
 		if (g_bGotOldFontSmoothingValue && g_bOldFontSmoothingValue != FALSE) {
 			
 			if (g_bGotClearType && g_bOldClearTypeValue != FALSE) {
-				if (!SystemParametersInfo(0x1049 /*SPI_SETCLEARTYPE*/, 0, (PVOID)FALSE, SPIF_SENDCHANGE)) {				
+				if (!SystemParametersInfo(0x1049 /*SPI_SETCLEARTYPE*/, 0, reinterpret_cast<PVOID>(FALSE), SPIF_SENDCHANGE)) {
 					vnclog.Print(LL_INTWARN, VNCLOG("Failed to set SPI value for SPI_SETCLEARTYPE (0x%08x)\n"), GetLastError());
 				} else {
 					g_bDisabledFontSmoothing = true; // ensure we reset even if SPI_SETFONTSMOOTHING fails for some reason
@@ -400,7 +404,7 @@ void EnableFontSmoothing()
 				vnclog.Print(LL_INTINFO, VNCLOG("Restored SPI value for SPI_SETFONTSMOOTHING: 0x%08x\n"), g_bOldFontSmoothingValue);
 
 				if (g_bGotClearType) {
-					if (!SystemParametersInfo(0x1049 /*SPI_SETCLEARTYPE*/, 0, (PVOID)g_bOldClearTypeValue, SPIF_SENDCHANGE)) {				
+					if (!SystemParametersInfo(0x1049 /*SPI_SETCLEARTYPE*/, 0, reinterpret_cast<PVOID>(g_bOldClearTypeValue), SPIF_SENDCHANGE)) {
 						vnclog.Print(LL_INTWARN, VNCLOG("Failed to restore SPI value for SPI_SETCLEARTYPE (0x%08x)\n"), GetLastError());
 					} else {
 						vnclog.Print(LL_INTINFO, VNCLOG("Restored SPI value for SPI_SETCLEARTYPE: 0x%08x\n"), g_bOldClearTypeValue);
@@ -408,7 +412,7 @@ void EnableFontSmoothing()
 				}
 
 				if (g_bGotFontSmoothingType) {
-					if (!SystemParametersInfo(0x200B /*SPI_SETFONTSMOOTHINGTYPE*/, 0, (PVOID)g_nOldFontSmoothingType, SPIF_SENDCHANGE)) {				
+					if (!SystemParametersInfo(0x200B /*SPI_SETFONTSMOOTHINGTYPE*/, 0, reinterpret_cast<PVOID>(g_nOldFontSmoothingType), SPIF_SENDCHANGE)) {
 						vnclog.Print(LL_INTWARN, VNCLOG("Failed to restore SPI value for SPI_SETFONTSMOOTHINGTYPE (0x%08x)\n"), GetLastError());
 					} else {
 						vnclog.Print(LL_INTINFO, VNCLOG("Restored SPI value for SPI_SETFONTSMOOTHINGTYPE: 0x%08x\n"), g_nOldFontSmoothingType);

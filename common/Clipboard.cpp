@@ -33,9 +33,13 @@
 #include "Clipboard.h"
 
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include "../winvnc/winvnc/stdhdrs.h"
+#endif
+
 #define VC_EXTRALEAN
-#include <WinSock2.h>
-#include <Windows.h>
+#include <winsock2.h>
+#include <windows.h>
 
 #include <string>
 
@@ -44,7 +48,9 @@
 #include <rdr/ZlibInStream.h>
 #ifdef _INTERNALLIB
 #include <zlib.h>
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #include <zstd.h>
+#endif
 #else
 #include "../zlib/zlib.h"
 #include "../zstd-1.4.4/lib/zstd.h"
@@ -52,6 +58,7 @@
 
 
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 ExtendedClipboardDataMessage::ExtendedClipboardDataMessage()
 	: m_pExtendedData(NULL), m_nInternalLength(0), m_pCurrentPos(NULL), m_pData(NULL)
 {
@@ -192,6 +199,7 @@ CARD32 ExtendedClipboardDataMessage::GetFlags()
 {
 	return Swap32IfLE(m_pExtendedData->flags);
 }
+#endif
 
 const UINT ClipboardSettings::formatUnicodeText =	CF_UNICODETEXT;
 const UINT ClipboardSettings::formatRTF =			RegisterClipboardFormat("Rich Text Format");
@@ -228,6 +236,7 @@ CARD32 ClipboardSettings::defaultViewerCaps = defaultCaps | clipNotify;
 CARD32 ClipboardSettings::defaultServerCaps = defaultCaps | clipPeek;
 
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 void ClipboardSettings::PrepareCapsPacket(ExtendedClipboardDataMessage& extendedDataMessage)
 {
 	// messages and formats that we can handle
@@ -629,6 +638,7 @@ bool ClipboardData::Restore(HWND hwndOwner, ExtendedClipboardDataMessage& extend
 
 	return true;
 }
+#endif
 
 Clipboard::Clipboard(CARD32 caps)
 	: settings(caps)
@@ -639,6 +649,7 @@ Clipboard::Clipboard(CARD32 caps)
 {
 }
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // returns true if something changed
 bool Clipboard::UpdateClipTextEx(ClipboardData& clipboardData, CARD32 overrideFlags)
 {
@@ -764,3 +775,4 @@ bool Clipboard::UpdateClipTextEx(ClipboardData& clipboardData, CARD32 overrideFl
 
 	return m_bNeedToProvide || m_bNeedToNotify;
 }
+#endif

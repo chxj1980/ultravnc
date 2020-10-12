@@ -42,6 +42,7 @@ public:
 	// Initialisation
 	BOOL Init(vncServer *server);
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// The dialog box window proc
 	static BOOL CALLBACK DialogProcPoll(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -49,9 +50,11 @@ public:
 	// If usersettings is TRUE then the per-user settings come up
 	// If usersettings is FALSE then the default system settings come up
 	void Show(BOOL show, BOOL usersettings);
+#endif
 
 	// Loading & saving of preferences
 	void Load(BOOL usersettings);
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	void ResetRegistry();
 
 	void Save();
@@ -63,6 +66,7 @@ public:
 	void LoadUserPrefsPollFromIniFile();
 	void SaveToIniFile();
 	void SaveUserPrefsPollToIniFile();
+#endif
 
 	// Implementation
 protected:
@@ -105,6 +109,7 @@ protected:
 	BOOL m_pref_PollOnEventOnly;
 	LONG m_pref_MaxCpu;
 
+	BOOL m_pref_DeskDupEngine;
 	BOOL m_pref_Driver;
 	BOOL m_pref_Hook;
 	BOOL m_pref_Virtual;

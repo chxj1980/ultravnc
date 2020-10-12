@@ -62,11 +62,17 @@ public:
 	VNCLog();
 
     inline void Print(int level, const char* format, ...) {
+#ifndef ULTRAVNC_VEYON_SUPPORT
         if ( level > m_level ) return;
 		if (!m_todebug && !m_toconsole && !m_tofile) return;
+#endif
         va_list ap;
         va_start(ap, format);
+#ifndef ULTRAVNC_VEYON_SUPPORT
         ReallyPrint(format, ap);
+#else
+        ReallyPrint(level, format, ap);
+#endif
         va_end(ap);
     }
     
@@ -91,15 +97,22 @@ public:
 	virtual ~VNCLog();
 
 private:
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	void ReallyPrintLine(int level, const char* line);
+    void ReallyPrint(int level, const char* format, va_list ap);
+#else
 	void ReallyPrintLine(const char* line);
     void ReallyPrint(const char* format, va_list ap);
 	void OpenFile();
     void CloseFile();
+#endif
     bool m_tofile, m_todebug, m_toconsole;
 	int m_mode;
     int m_level;
     HANDLE hlogfile;
+#ifdef ULTRAVNC_VEYON_SUPPORT
 	char m_filename[512];
+#endif
 	bool m_append;
 	bool m_video;
 	char m_path[MAX_PATH];

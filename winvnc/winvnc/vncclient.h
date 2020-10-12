@@ -63,8 +63,12 @@ typedef std::list<vncClientId> vncClientList;
 #include "rfbUpdateTracker.h"
 #include "vncbuffer.h"
 #include "vncencodemgr.h"
+#ifdef TEXT_CHAT_SUPPORT
 #include "TextChat.h" // sf@2002 - TextChat
+#endif
+#ifdef FILETRANSFER_SUPPORT
 #include "ZipUnZip32/zipUnZip32.h"
+#endif
 //#include "timer.h"
 // adzm - 2010-07 - Extended clipboard
 #include "common/Clipboard.h"
@@ -134,8 +138,10 @@ public:
 	// These all lock the UpdateLock themselves
 	virtual void UpdateMouse();
 	//virtual void UpdateClipText(const char* text);
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 	// adzm - 2010-07 - Extended clipboard
 	virtual void UpdateClipTextEx(ClipboardData& clipboardData, CARD32 overrideFlags = 0);
+#endif
 	virtual void UpdatePalette(bool lock);
 	virtual void UpdateLocalFormat(bool lock);
 	int nr_incr_rgn_empty;
@@ -209,9 +215,13 @@ public:
 	virtual void SetScreenOffset(int x,int y,int type);
 	virtual void InitialUpdate(bool value);
 
+#ifdef TEXT_CHAT_SUPPORT
 	virtual TextChat* GetTextChatPointer() { return m_pTextChat; }; // sf@2002
+#endif
+#ifdef AUTH_ULTRA_SUPPORT
 	virtual void SetUltraViewer(bool fTrue) { m_fUltraViewer = fTrue;};
 	virtual bool IsUltraViewer() { return m_fUltraViewer;};
+#endif
 
 	virtual void EnableCache(BOOL enabled);
 
@@ -223,7 +233,9 @@ public:
 	virtual bool IsUltraEncoding() {return m_encodemgr.IsUltraEncoding();};
 	virtual bool IsUltra2Encoding() {return m_encodemgr.IsUltra2Encoding();};
 	virtual bool IsEncoderSet() { return m_encodemgr.IsEncoderSet(); };
+#ifdef FILETRANSFER_SUPPORT
 	virtual bool IsFileTransBusy(){return (m_fFileUploadRunning||m_fFileDownloadRunning || m_fFileSessionOpen);};
+#endif
 	void SetProtocolVersion(rfbProtocolVersionMsg *protocolMsg);
 	void SetOutgoing(bool outgoing) {m_outgoing = outgoing;};
 	void Clear_Update_Tracker();
@@ -267,6 +279,7 @@ public:
 		return m_hostPort;
 	};
 
+#ifdef FILETRANSFER_SUPPORT
 	// sf@2004 - Asynchronous FileTransfer - Delta Transfer
 	int  GenerateFileChecksums(HANDLE hFile, char* lpCSBuffer, int nCSBufferSize);
 	bool ReceiveDestinationFileChecksums(int nSize, int nLen);
@@ -297,14 +310,25 @@ public:
     void FTNewFolderHook(std::string name);
     void FTDeleteHook(std::string name, bool isDir);
     void FTRenameHook(std::string oldName, std::string newname);
+#endif
+#ifdef SERVER_STATE_SUPPORT
     void SendServerStateUpdate(CARD32 state, CARD32 value);
 	void Record_SendServerStateUpdate(CARD32 state, CARD32 value);
+#endif
+#ifdef KEEP_ALIVE_SUPPORT
     void SendKeepAlive(bool bForce = false);
+#endif
+#ifdef FILETRANSFER_SUPPORT
     void SendFTProtocolMsg();
+#endif
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 	// adzm - 2010-07 - Extended clipboard
 	void NotifyExtendedClipboardSupport();
+#endif
+#ifdef DSM_SUPPORT
 	// adzm 2010-09 - Notify streaming DSM plugin support
 	void NotifyPluginStreamingSupport();
+#endif
 	bool cl_connected;
 	int filetransferrequestPart2(int nDirZipRet);
 	char m_szSrcFileName[MAX_PATH + 64]; // Path + timestring
@@ -512,6 +536,7 @@ protected:
 
 	// Modif sf@2002 - FileTransfer 
 	BOOL m_fFileTransferRunning;
+#ifdef FILETRANSFER_SUPPORT
 	CZipUnZip32		*m_pZipUnZip;
 
 	char  m_szFullDestName[MAX_PATH + 64];
@@ -544,6 +569,7 @@ protected:
 	char*	m_lpCSBuffer;
 	int		m_nCSOffset;
 	int		m_nCSBufferSize;
+#endif
 
 	// Modif sf@2002 - Scaling
 	rfb::Rect		m_ScaledScreen;
@@ -551,7 +577,9 @@ protected:
 	UINT			m_nScale_viewer;
 	bool			fNewScale;
 	bool			m_fPalmVNCScaling;
+#ifdef FILETRANSFER_SUPPORT
 	bool			fFTRequest;
+#endif
 
 	// sf@2002 
 	BYTE* m_pCacheZipBuf;
@@ -559,15 +587,21 @@ protected:
 	BYTE* m_pRawCacheZipBuf;
 	unsigned int m_nRawCacheZipBufSize;
 
+#ifdef TEXT_CHAT_SUPPORT
 	friend class TextChat; 
 	TextChat *m_pTextChat;	// Modif sf@2002 - Text Chat
+#endif
 
+#ifdef AUTH_ULTRA_SUPPORT
 	bool m_fUltraViewer; // sf@2002 
+#endif
 
+#ifdef FILETRANSFER_SUPPORT
 	// sf@2005 - FTUserImpersonation
 	bool m_fFTUserImpersonatedOk;
 	char m_szTempDir[MAX_PATH];
 	DWORD m_lLastFTUserImpersonationTime;
+#endif
 
 	//stats
 	int totalraw;
@@ -575,10 +609,14 @@ protected:
     helper::DynamicFn<pSendinput> Sendinput;
 
     std::string m_OrigSourceDirectoryName;
+#ifdef SERVER_STATE_SUPPORT
     bool        m_wants_ServerStateUpdates;
+#endif
     bool        m_bClientHasBlockedInput;
 	bool		m_Support_rfbSetServerInput;
+#ifdef KEEP_ALIVE_SUPPORT
     bool        m_wants_KeepAlive;
+#endif
 	bool		m_session_supported;
 	bool		m_initial_update;
 	bool		m_outgoing;
@@ -607,12 +645,20 @@ public:
 	virtual BOOL AuthenticateClient(std::vector<CARD8>& current_auth);
 	virtual BOOL AuthenticateLegacyClient();
 
+#ifdef DSM_SUPPORT
 	BOOL AuthSecureVNCPlugin(std::string& auth_message); // must SetHandshakeComplete after sending auth result!
 	BOOL AuthSecureVNCPlugin_old(std::string& auth_message);
+#endif
+#ifdef AUTH_MS_LOGON_SUPPORT
 	BOOL AuthMsLogon(std::string& auth_message);
+#endif
 	BOOL AuthVnc(std::string& auth_message);
+#ifdef AUTH_SC_PROMP_SUPPORT
 	BOOL AuthSCPrompt(std::string& auth_message); // adzm 2010-10
+#endif
+#ifdef AUTH_SESSION_SELECT_SUPPORT
 	BOOL AuthSessionSelect(std::string& auth_message); // adzm 2010-10
+#endif
 
 	BOOL FilterClients_Blacklist();
 	BOOL FilterClients_Ask_Permission();
@@ -644,7 +690,9 @@ protected:
 	vncClient *m_client;
 	BOOL m_auth;
 	BOOL m_shared;
+#ifdef AUTH_MS_LOGON_SUPPORT
 	BOOL m_ms_logon;
+#endif
 	int m_major;
 	int m_minor;
 #ifdef _Gii

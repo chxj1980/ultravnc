@@ -130,8 +130,10 @@ vncServer::vncServer()
 	// Initialise some important stuffs...
 	g_Server_running=true;
 	m_socketConn = NULL;
+#ifdef HTTP_SUPPORT
 	m_httpConn = NULL;
 	m_enableHttpConn = false;
+#endif
 
 	m_desktop = NULL;
 	m_name = NULL;
@@ -162,6 +164,7 @@ vncServer::vncServer()
 	m_MaxCpu=20;
 	m_poll_consoleonly = TRUE;
 
+	m_deskDupEngine = TRUE;
 	m_driver = FALSE;
 	m_hook = FALSE;
 	m_virtual = FALSE;
@@ -205,12 +208,14 @@ vncServer::vncServer()
 	m_fFileTransferEnabled = true;
 	m_nDefaultScale = 1;
 
+#ifdef DSM_SUPPORT
 	// sf@2002 - Data Stream Modification Plugin handling
 	m_pDSMPlugin = new CDSMPlugin();
 
 	m_fDSMPluginEnabled = false;
 	m_NatPluginEnabled = false;
 	strcpy_s(m_szDSMPlugin, "");
+#endif
 
 	m_fMSLogonRequired = false;
 	m_Secure = false;
@@ -231,14 +236,21 @@ vncServer::vncServer()
 
 	m_impersonationtoken=NULL; // Modif Jeremy C. 
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	m_fRunningFromExternalService = true;
+#else
 	m_fRunningFromExternalService = false;
+#endif
 	m_fAutoRestart = false;
     m_ftTimeout = FT_RECV_TIMEOUT;
     m_keepAliveInterval = KEEPALIVE_INTERVAL;
 	m_IdleInputTimeout = 0;
 	
+#ifdef DSM_SUPPORT
 	//adzm 2010-05-12 - dsmplugin config
 	m_szDSMPluginConfig[0] = '\0';
+#endif
+
 	OS_Shutdown=false;
 
 	m_autocapt = 1;
@@ -264,11 +276,13 @@ vncServer::~vncServer()
 		m_socketConn = NULL;
 	}
 
+#ifdef HTTP_SUPPORT
 	if (m_httpConn != NULL)
 	{
 		delete m_httpConn;
 		m_httpConn = NULL;
 	}
+#endif
 
 	if (retrysock != NULL)
 		retrysock->Shutdown();
@@ -325,6 +339,7 @@ vncServer::~vncServer()
 		m_clientquitsig = NULL;
 	}
 
+#ifdef DSM_SUPPORT
 	// Modif sf@2002 - DSMPlugin handling
 	if (m_pDSMPlugin != NULL)
 	{
@@ -332,6 +347,7 @@ vncServer::~vncServer()
 		m_pDSMPlugin=NULL;
 		vnclog.Print(LL_SOCKINFO, VNCLOG("~server m_pDSMPlugin = NULL \n"));
 	}
+#endif
 
 	// Free the host blacklist
 	omni_mutex_lock l(m_clientsLockBlackList, 611);
@@ -366,11 +382,13 @@ vncServer::ShutdownServer()
 		m_socketConn = NULL;
 	}
 
+#ifdef HTTP_SUPPORT
 	if (m_httpConn != NULL)
 	{
 		delete m_httpConn;
 		m_httpConn = NULL;
 	}
+#endif
 
 	if (retrysock != NULL)
 		retrysock->Shutdown();
@@ -428,6 +446,7 @@ vncServer::ShutdownServer()
 		m_clientquitsig = NULL;
 	}
 
+#ifdef DSM_SUPPORT
 	// Modif sf@2002 - DSMPlugin handling
 	if (m_pDSMPlugin != NULL)
 	{
@@ -435,6 +454,7 @@ vncServer::ShutdownServer()
 		m_pDSMPlugin=NULL;
 		vnclog.Print(LL_SOCKINFO, VNCLOG("ShutdownServer m_pDSMPlugin = NULL \n"));
 	}
+#endif
 
 	// Free the host blacklist
 	omni_mutex_lock l(m_clientsLockBlackList, 611);
@@ -572,7 +592,9 @@ vncClientId vncServer::AddClient(VSocket *socket,
 
 		if (m_unauthClients.size() > 0) {
 			szInfo[strlen(szInfo) - 2] = '\0';
+#ifndef ULTRAVNC_VEYON_SUPPORT
 			vncMenu::NotifyBalloon(szInfo, NULL);
+#endif
 		}		
 	}
 
@@ -701,7 +723,9 @@ vncServer::Authenticated(vncClientId clientid)
 
 		szInfo[255] = '\0';
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		vncMenu::NotifyBalloon(szInfo, NULL);
+#endif
 	}
 
 	vnclog.Print(LL_INTINFO, VNCLOG("Authenticated() done\n"));
@@ -777,6 +801,7 @@ void vncServer::KillClient(LPSTR szClientName)
 }
 
 
+#ifdef TEXT_CHAT_SUPPORT
 //
 // sf@2002 - Open a textchat window with the named client
 //
@@ -808,7 +833,9 @@ void vncServer::TextChatClient(LPSTR szClientName)
 	}
 	vnclog.Print(LL_INTINFO, VNCLOG("KillClient() from name done\n"));
 }
+#endif
 
+#ifdef AUTH_ULTRA_SUPPORT
 bool vncServer::IsUltraVNCViewer()
 {
 	vncClientList::iterator i;
@@ -821,6 +848,7 @@ bool vncServer::IsUltraVNCViewer()
 	}
 	return false;
 }
+#endif
 
 bool vncServer::AreThereMultipleViewers()
 {
@@ -991,6 +1019,7 @@ bool vncServer::IsEncoderSet()
 
 bool vncServer::IsThereFileTransBusy()
 {
+#ifdef FILETRANSFER_SUPPORT
 	vncClientList::iterator i;
 	bool fFound = false;
 	omni_mutex_lock l(m_clientsLock,26);
@@ -1002,6 +1031,7 @@ bool vncServer::IsThereFileTransBusy()
 			return true;
 		}
 	}
+#endif
 	return false;
 }
 
@@ -1226,6 +1256,7 @@ vncServer::RemoveClient(vncClientId clientid)
 	{
 		vnclog.Print(LL_STATE, VNCLOG("deleting desktop server\n"));
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		// sf@2007 - Do not lock/logoff even if required when WinVNC autorestarts (on desktop change (XP FUS / Vista))
 		if (!AutoRestartFlag() && !OS_Shutdown)
 		{
@@ -1248,6 +1279,7 @@ vncServer::RemoveClient(vncClientId clientid)
 				}
 			}
 		}
+#endif
 
 		// Delete the screen server
 		delete m_desktop;
@@ -1325,6 +1357,7 @@ vncServer::UpdateMouse()
 }
 
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // adzm - 2010-07 - Extended clipboard
 void
 vncServer::UpdateClipTextEx(HWND hwndOwner, vncClient* excludeClient)
@@ -1346,6 +1379,7 @@ vncServer::UpdateClipTextEx(HWND hwndOwner, vncClient* excludeClient)
 		}
 	}
 }
+#endif
 
 void
 vncServer::UpdateCursorShape()
@@ -1403,6 +1437,7 @@ vncServer::UpdateLocalClipText(LPSTR text)
 }
 
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // adzm - 2010-07 - Extended clipboard
 void
 vncServer::UpdateLocalClipTextEx(ExtendedClipboardDataMessage& extendedClipboardDataMessage, vncClient* sourceClient)
@@ -1415,6 +1450,7 @@ vncServer::UpdateLocalClipTextEx(ExtendedClipboardDataMessage& extendedClipboard
 			m_desktop->SetClipTextEx(extendedClipboardDataMessage);
 	}
 }
+#endif
 
 // Name and port number handling
 void
@@ -1624,7 +1660,9 @@ vncServer::SockConnect(BOOL On)
 				for (int i=0; i < 99; i++)
 				{
 					m_port = DISPLAY_TO_PORT(i);
+#ifdef HTTP_SUPPORT
 					m_port_http = DISPLAY_TO_HPORT(i);
+#endif
 
 					vnclog.Print(LL_CLIENTS, VNCLOG("trying port number %d\n"), m_port);
 
@@ -1669,8 +1707,10 @@ vncServer::SockConnect(BOOL On)
 				}
 			}
 
+#ifdef HTTP_SUPPORT
 			// Now let's start the HTTP connection stuff
 			EnableHTTPConnect(m_enableHttpConn);
+#endif
 			vnclog.Print(LL_SOCKINFO, VNCLOG("SockConnect  Done %d\n"), On);
 		}
 	}
@@ -1693,8 +1733,10 @@ vncServer::SockConnect(BOOL On)
 			m_socketConn = NULL;
 		}
 
+#ifdef HTTP_SUPPORT
 		// Is there an HTTP socket active?
 		EnableHTTPConnect(m_enableHttpConn);
+#endif
 	}
 
 	return TRUE;
@@ -1706,6 +1748,7 @@ vncServer::SockConnected()
 	return m_socketConn != NULL;
 }
 
+#ifdef HTTP_SUPPORT
 BOOL
 vncServer::EnableHTTPConnect(BOOL enable)
 {
@@ -1743,6 +1786,7 @@ vncServer::EnableHTTPConnect(BOOL enable)
 
 	return TRUE;
 }
+#endif
 
 BOOL
 vncServer::SetLoopbackOnly(BOOL loopbackOnly)
@@ -2101,13 +2145,24 @@ vncServer::AddAuthHostsBlacklist(const char *machine) {
 			current->_lastRefTime.QuadPart = now.QuadPart + 10*current->_failureCount;
 			current->_failureCount++;
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+			if (current->_failureCount > 50)
+#else
 			if (current->_failureCount > 5)
+#endif
 				current->_blocked = TRUE;
 			return;
 		}
 
 		current = current->_next;
 	}
+
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	if( strcmp( machine, "127.0.0.1" ) == 0 )
+	{
+		return;
+	}
+#endif
 
 	// Didn't find the entry
 	current = new vncServer::BlacklistEntry;
@@ -2293,6 +2348,7 @@ BOOL vncServer::SetNewMSLogon(BOOL fEnable)
 	return TRUE;
 }
 
+#ifdef DSM_SUPPORT
 //
 // sf@2002 - v1.1.x - DSM Plugin
 //
@@ -2419,6 +2475,7 @@ void vncServer::SetDSMPluginConfig(char* szDSMPluginConfig)
 {
 	strncpy_s(m_szDSMPluginConfig, sizeof(m_szDSMPluginConfig) - 1, szDSMPluginConfig, _TRUNCATE);
 }
+#endif
 
 //
 // sgf@2002 - for now, we disable cache rects when more than one client
@@ -2448,6 +2505,11 @@ vncServer::Clear_Update_Tracker() {
 	}
 }
 
+
+void vncServer::DeskDupEngine(BOOL enable)
+{
+	m_deskDupEngine = enable;
+}
 
 void vncServer::Driver(BOOL enable)
 {
@@ -2646,6 +2708,7 @@ void vncServer::actualRetryThread()
 	vnclog.Print(LL_INTINFO, VNCLOG("leaving reconnectThread....\n"));
 }
 
+#ifdef SERVER_STATE_SUPPORT
 void vncServer::NotifyClients_StateChange(CARD32 state, CARD32 value)
 {
 	omni_mutex_lock l(m_clientsLock,42);
@@ -2674,6 +2737,7 @@ void vncServer::NotifyClients_StateChange(CARD32 state, CARD32 value)
         client->Record_SendServerStateUpdate(state, value);
 	}
 }
+#endif
 
 void vncServer::StopReconnectAll()
 {

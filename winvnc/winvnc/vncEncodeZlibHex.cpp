@@ -132,7 +132,11 @@ vncEncodeZlibHex::EncodeRect(BYTE *source, VSocket *outConn, BYTE *dest, const R
 	surh->r.y = Swap16IfLE(surh->r.y);
 	surh->r.w = Swap16IfLE(surh->r.w);
 	surh->r.h = Swap16IfLE(surh->r.h);
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	surh->encoding = Swap32IfLE(rfbEncodingZlibHex);
+#else
 	surh->encoding = Swap32IfLE(m_use_zstd ? rfbEncodingZstdHex : rfbEncodingZlibHex);
+#endif
 
 	rectangleOverhead += sz_rfbFramebufferUpdateRectHeader;
 	dataSize += ( rectW * rectH * m_remoteformat.bitsPerPixel) / 8;

@@ -63,9 +63,15 @@ void InitIpp();
 #include "Localization.h" // Act : add localization on messages
 
 // Application instance and name
+#ifdef ULTRAVNC_VEYON_SUPPORT
+HINSTANCE	hAppInstance = NULL;
+const char	*szAppName = "VEYONVNC";
+DWORD		mainthreadId = 0;
+#else
 HINSTANCE	hAppInstance;
 const char	*szAppName = "WinVNC";
 DWORD		mainthreadId;
+#endif
 BOOL		fRunningFromExternalService = false;
 BOOL		fRunningFromExternalServiceRdp = false;
 
@@ -123,7 +129,9 @@ HINSTANCE	hInstResDLL;
 BOOL SPECIAL_SC_EXIT=false;
 BOOL SPECIAL_SC_PROMPT=false;
 //BOOL G_HTTP;
+#ifndef ULTRAVNC_VEYON_SUPPORT
 BOOL multi=false;
+#endif
 
 void Reboot_in_safemode_elevated();
 void Reboot_in_safemode();
@@ -135,8 +143,11 @@ void Secure_Plugin_elevated(char *szPlugin);
 void Secure_Plugin(char *szPlugin);
 
 //HACK to use name in autoreconnect from service with dyn dns
+#ifndef ULTRAVNC_VEYON_SUPPORT
 char dnsname[255];
+#endif
 VNC_OSVersion VNCOS;
+#ifndef ULTRAVNC_VEYON_SUPPORT
 extern bool PreConnect;
 // winvnc.exe will also be used for helper exe
 // This allow us to minimize the number of seperate exe
@@ -1195,6 +1206,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 #endif
 	return 0;
 }
+#endif
 
 // rdv&sf@2007 - New TrayIcon impuDEsktop/impersonation thread stuff
 
@@ -1235,6 +1247,7 @@ DWORD WINAPI imp_desktop_thread(LPVOID lpParam)
 
 //	ImpersonateCurrentUser_();
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	char m_username[UNLEN+1];
 	HWINSTA station = GetProcessWindowStation();
 	if (station != NULL)
@@ -1269,7 +1282,15 @@ DWORD WINAPI imp_desktop_thread(LPVOID lpParam)
 		vnclog.Print(LL_INTERR, VNCLOG("failed to create tray menu\n"));
 		PostQuitMessage(0);
 	}
+#else
+	vncProperties   m_properties;
+	vncPropertiesPoll   m_propertiesPoll;
 
+	m_properties.Init(server);
+	m_propertiesPoll.Init(server);
+#endif
+
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// This is a good spot to handle the old PostAdd messages
 	if (PostAddAutoConnectClient_bool)
 		vncService::PostAddAutoConnectClient( pszId_char );
@@ -1305,8 +1326,20 @@ DWORD WINAPI imp_desktop_thread(LPVOID lpParam)
 		vnclog.Print(LL_INTERR, VNCLOG("PostAddNewRepeaterClient II\n"));
 		vncService::PostAddNewRepeaterClient();
 	}
+#endif
 	bool Runonce=false;
 	MSG msg;
+#ifdef ULTRAVNC_VEYON_SUPPORT
+	while( fShutdownOrdered == false )
+	{
+		DWORD result = WaitForSingleObject(hShutdownEvent, 100);
+		if (WAIT_OBJECT_0 == result)
+		{
+			ResetEvent(hShutdownEvent);
+			fShutdownOrdered = true;
+		}
+	}
+#else
 	while (GetMessage(&msg,0,0,0) != 0)
 	{
 		TranslateMessage(&msg);
@@ -1334,6 +1367,7 @@ DWORD WINAPI imp_desktop_thread(LPVOID lpParam)
 
 	if (menu != NULL)
 		delete menu;
+#endif
 
 	//vnclog.Print(LL_INTERR, VNCLOG("GetMessage stop \n"));
 	SetThreadDesktop(old_desktop);
@@ -1381,19 +1415,12 @@ void KillSDTimer()
 
 int WinVNCAppMain()
 {
-	IniFile myIniFile;
-	vnclog.SetMode(myIniFile.ReadInt("admin", "DebugMode", 0));
-	char temp[512];
-	myIniFile.ReadString("admin", "path", temp,512);
-	vnclog.SetPath(temp);
-	vnclog.SetLevel(myIniFile.ReadInt("admin", "DebugLevel", 0));
-	vnclog.SetVideo(myIniFile.ReadInt("admin", "Avilog", 0) ? true : false);
-
 	vnclog.Print(-1, VNCLOG("WinVNCAPPMain-----Application started\n"));
 #ifdef CRASH_ENABLED
 	LPVOID lpvState = Install(NULL,  "rudi.de.vos@skynet.be", "UltraVNC");
 #endif
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	// Set this process to be the last application to be shut down.
 	// Check for previous instances of WinVNC!
 	vncInstHandler *instancehan=new vncInstHandler;
@@ -1409,6 +1436,7 @@ int WinVNCAppMain()
 			return 0;
 		}
 	}
+#endif
 
 	//vnclog.Print(LL_INTINFO, VNCLOG("***** DBG - Previous instance checked - Trying to create server\n"));
 	// CREATE SERVER
@@ -1449,8 +1477,10 @@ int WinVNCAppMain()
 	}
 	fShutdownOrdered = true;
 	//KillSDTimer();
+#ifndef ULTRAVNC_VEYON_SUPPORT
 	if (instancehan!=NULL)
 		delete instancehan;
+#endif
 
 	if (hShutdownEvent)CloseHandle(hShutdownEvent);	
 	vnclog.Print(LL_STATE, VNCLOG("################## SHUTING DOWN SERVER ####################\n"));

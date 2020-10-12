@@ -21,7 +21,12 @@
 // which you received this file, check 
 // http://www.uvnc.com
 // /macine-vnc Greg Wood (wood@agressiv.com)
+#include <algorithm>
+
 #include "authSSP.h"
+
+#define __leave goto cleanup
+#define __finally cleanup:
 
 /*
  *  AuthSSP.cpp: Domainuser could be 'domain\user', just 'user' or
@@ -31,6 +36,7 @@
 
 Fn fn;
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 BOOL CUPSD2(const char * domainuser, 
 		  const char *password, 
 		  PSECURITY_DESCRIPTOR psdSD,
@@ -66,14 +72,12 @@ BOOL CUPSD2(const char * domainuser,
 	}
 	return SSPLogonUser(domain2, user2, password2, psdSD, isAuthenticated, pdwAccessGranted);
 }
+#endif
 
 
 BOOL WINAPI SSPLogonUser(LPTSTR szDomain, 
 						 LPTSTR szUser, 
-						 LPTSTR szPassword, 
-						 PSECURITY_DESCRIPTOR psdSD,
-						 PBOOL isAuthenticated,
-						 PDWORD pdwAccessGranted)	// returns bitmask with accessrights
+						 LPTSTR szPassword)	// returns bitmask with accessrights
 {
 	AUTH_SEQ    asServer   = {0};
 	AUTH_SEQ    asClient   = {0};
@@ -154,6 +158,9 @@ BOOL WINAPI SSPLogonUser(LPTSTR szDomain,
             &fDone))
 			__leave;
 		
+#ifdef ULTRAVNC_VEYON_SUPPORT
+		fResult = TRUE;
+#else
 		*isAuthenticated = TRUE;
 
 		// Check authorization
@@ -165,6 +172,7 @@ BOOL WINAPI SSPLogonUser(LPTSTR szDomain,
 			if (ImpersonateAndCheckAccess(&(asServer.hctxt), psdSD, pdwAccessGranted))
 				fResult = TRUE;
 		}
+#endif
 
 	} __finally {
 

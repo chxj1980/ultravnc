@@ -28,11 +28,16 @@ class vncEncodeUltra2;
 #define _WINVNC_EncodeULTRA2
 #pragma once
 #include "vncencoder.h"
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include <lzo/lzo1x.h>
+#include <jpeglib.h>
+#else
 #include "lzo/minilzo.h"
 #ifdef _INTERNALLIB
 #include <jpeglib.h>
 #else
 #include "libjpeg-turbo-win/jpeglib.h"
+#endif
 #endif
 
 // Class definition

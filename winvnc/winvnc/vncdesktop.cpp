@@ -1501,6 +1501,7 @@ vncDesktop::FillDisplayInfo(rfbServerInitMsg *scrinfo)
 }
 
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 void
 vncDesktop::WriteMessageOnScreen(char * tt, BYTE *scrBuff, UINT scrBuffSize)
 {
@@ -1713,6 +1714,7 @@ vncDesktop::WriteMessageOnScreenPreConnect(BYTE *scrBuff, UINT scrBuffSize)
 	SetRect(&rect, 0, 0, 640, 640);
 	CopyToBuffer(rect, scrBuff, scrBuffSize);
 }
+#endif
 
 
 
@@ -2013,6 +2015,7 @@ void vncDesktop::SetClipText(LPSTR rfbStr)
 	CloseClipboard();
 }
 
+#ifdef EXTENDED_CLIPBOARD_SUPPORT
 // adzm - 2010-07 - Extended clipboard
 void vncDesktop::SetClipTextEx(ExtendedClipboardDataMessage& extendedClipboardDataMessage)
 {
@@ -2031,6 +2034,7 @@ void vncDesktop::SetClipTextEx(ExtendedClipboardDataMessage& extendedClipboardDa
 		}
 	}
 }
+#endif
 
 // INTERNAL METHODS
 
@@ -2209,7 +2213,9 @@ vncDesktop::SetDisableInput()
 {
 	CARD32 state;
 	state = !block_input(false);
+#ifdef SERVER_STATE_SUPPORT
 	m_server->NotifyClients_StateChange(rfbServerRemoteInputsState, state);
+#endif
 }
 
 
@@ -2352,7 +2358,7 @@ BOOL vncDesktop::InitVideoDriver()
 		if (m_screenCapture != NULL) delete m_screenCapture;
 
 	}
-	if (IsWindows8OrGreater())
+	if (IsWindows8OrGreater() && m_server->DeskDupEngine())
 	{
 		int a = 0;
 		m_screenCapture = new DeskDupEngine;
@@ -2550,6 +2556,7 @@ void vncDesktop::SetBlockInputState(bool newstate)
 	{
 		if (!m_server->BlankInputsOnly())
 		{
+#ifndef ULTRAVNC_VEYON_SUPPORT
 			if ((blankmonitorstate == newstate) && (newstate == 1))
 			{
 				SetBlankMonitor(0);
@@ -2560,6 +2567,7 @@ void vncDesktop::SetBlockInputState(bool newstate)
 				SetBlankMonitor(newstate);
 				blankmonitorstate = newstate;
 			}
+#endif
 		}
 		m_bIsInputDisabledByClient = newstate;
 		state = !block_input(false);
@@ -2569,7 +2577,9 @@ void vncDesktop::SetBlockInputState(bool newstate)
 
 	m_bIsInputDisabledByClient = !state;
 
+#ifdef SERVER_STATE_SUPPORT
 	m_server->NotifyClients_StateChange(rfbServerRemoteInputsState, state);
+#endif
 }
 
 bool vncDesktop::block_input(bool first)
@@ -2604,7 +2614,9 @@ bool vncDesktop::block_input(bool first)
 		{
 			CARD32 state;
 			state = !Blockinput_val;
+#ifdef SERVER_STATE_SUPPORT
 			m_server->NotifyClients_StateChange(rfbServerRemoteInputsState, state);
+#endif
 		}
 		if (pbi)
 		{
