@@ -203,6 +203,7 @@ BOOL WINAPI SSPLogonUser(LPTSTR szDomain,
 	return fResult;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 BOOL ImpersonateAndCheckAccess(PCtxtHandle phContext, 
 							   PSECURITY_DESCRIPTOR psdSD, 
 							   PDWORD pdwAccessGranted) {
@@ -238,6 +239,7 @@ BOOL ImpersonateAndCheckAccess(PCtxtHandle phContext,
 	
 	return fAccessGranted;
 }
+#endif
 
 // SplitString splits a string 'input' on the first occurence of char 'separator'
 // into string 'head' and 'tail' (removing the separator).
