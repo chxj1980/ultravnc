@@ -27,6 +27,11 @@
 #include "GenClientServerContext.h"
 extern Fn fn;
 
+#ifdef ULTRAVNC_VEYON_SUPPORT
+#include <QDebug>
+#define fprintf(x, ...) qCritical(__VA_ARGS__)
+#endif
+
 #define __leave goto cleanup
 #define __finally cleanup:
 
@@ -242,7 +247,7 @@ BOOL GenClientContext(PAUTH_SEQ pAS, PSEC_WINNT_AUTH_IDENTITY pAuthIdentity,
          SECURITY_NATIVE_DREP, pAS->fInitialized ? &sbdIn : NULL,
          0, &pAS->hctxt, &sbdOut, &fContextAttr, &tsExpiry);
    if (ss < 0)  { 
-      // Todo: Better error reporting.
+      fprintf(stderr, "InitializeSecurityContext failed with %08X\n", (int) ss);
       return FALSE;
    }
 
