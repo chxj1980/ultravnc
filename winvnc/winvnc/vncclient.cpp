@@ -3713,6 +3713,7 @@ vncClientThread::run(void *arg)
 			break;
 
 
+#ifdef SERVER_STATE_SUPPORT
 		// Set Server Input
 		case rfbSetServerInput:
 			if (!m_socket->ReadExact(((char *) &msg) + nTO, sz_rfbSetServerInputMsg - nTO))
@@ -3752,7 +3753,9 @@ vncClientThread::run(void *arg)
 					}
 				}
 			break;
+#endif
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 		case rfbSetDesktopSize:
 			if (!m_socket->ReadExact(((char*)&msg) + nTO, sz_rfbSetDesktopSizeMsg - nTO)) {
 					m_client->cl_connected = FALSE;
@@ -3814,6 +3817,7 @@ vncClientThread::run(void *arg)
 				(Swap16IfLE(msg.sw.x) + m_client->monitor_Offsetx+m_client->m_ScreenOffsetx) * m_client->m_nScale,
 				(Swap16IfLE(msg.sw.y) + m_client->monitor_Offsety+m_client->m_ScreenOffsety) * m_client->m_nScale);
 			break;
+#endif
 
 
 #ifdef TEXT_CHAT_SUPPORT
