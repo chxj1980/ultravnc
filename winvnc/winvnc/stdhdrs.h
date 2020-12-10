@@ -22,7 +22,10 @@
 // whence you received this file, check http://www.uk.research.att.com/vnc or contact
 // the authors on vnc@uk.research.att.com for information on obtaining it.
 //need to be added for VS 2005
+
+#ifndef ULTRAVNC_VEYON_SUPPORT
 #define _Gii
+#endif
 #ifdef _Gii
 #ifndef WINVER                  // Specifies that the minimum required platform is Windows 7.
 #define WINVER 0x0602           // Change this to the appropriate value to target other versions of Windows.
