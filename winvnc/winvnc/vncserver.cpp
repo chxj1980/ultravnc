@@ -45,7 +45,9 @@
 #include "mmsystem.h" // sf@2002
 
 #include "vncmenu.h"
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 #include "VirtualDisplay.h"
+#endif
 
 #include "Localization.h" // ACT : Add localization on messages
 bool g_Server_running;
@@ -260,10 +262,12 @@ vncServer::vncServer()
 	m_fSendExtraMouse = TRUE;
 	retryThreadHandle = NULL;
 	retrysock = NULL;
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 	virtualDisplay = NULL;
 	m_virtualDisplaySupported = VirtualDisplay::InstallDriver(false);
 	if (m_virtualDisplaySupported)
 		virtualDisplay = new VirtualDisplay();
+#endif
 }
 
 vncServer::~vncServer()
@@ -370,8 +374,10 @@ vncServer::~vncServer()
 	//	vnclog.Print(LL_STATE, VNCLOG("shutting down server object(4)\n"));
 	g_Server_running=false;
 
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 	if (virtualDisplay)
 		delete virtualDisplay;
+#endif
 }
 
 void

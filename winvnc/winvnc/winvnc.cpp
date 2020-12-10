@@ -58,7 +58,9 @@
 #ifdef IPP
 void InitIpp();
 #endif
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 #include "VirtualDisplay.h"
+#endif
 
 #define LOCALIZATION_MESSAGES   // ACT: full declaration instead on extern ones
 #include "Localization.h" // Act : add localization on messages

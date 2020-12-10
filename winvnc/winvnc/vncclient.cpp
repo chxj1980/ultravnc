@@ -82,7 +82,9 @@
 #include "vncOSVersion.h"
 #include "common/win32_helpers.h"
 #include "uvncUiAccess.h"
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 #include "VirtualDisplay.h"
+#endif
 #include<map>
 using namespace std;
 
@@ -3778,16 +3780,20 @@ vncClientThread::run(void *arg)
 #endif				
 					resolutionMap.insert(make_pair(make_pair(x, y), make_pair(w, h)));
 				}
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 				if (!m_server->m_virtualDisplaySupported)
+#endif
 					flag = dmDisplay;
 				// Only the first Viewer can set the resolution
 				// unless it's extended mode with a single monitor
 				// This way each viewer can add his own extended display
 				m_client->m_singleExtendMode = (flag == dmExtendOnly);
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 				if (m_server->virtualDisplay && !m_server->AreThereMultipleViewers())
 					m_server->virtualDisplay->attachDisplay(flag, resolutionMap, m_client->m_singleExtendMode, m_client->m_id, m_client->displayname);
 				else if (m_server->virtualDisplay && m_server->AreThereMultipleViewers() && m_client->m_singleExtendMode)
 					m_server->virtualDisplay->attachDisplay(flag, resolutionMap, m_client->m_singleExtendMode, m_client->m_id, m_client->displayname);
+#endif
 				if (strlen(m_client->displayname) == 0)
 					m_client->m_singleExtendMode = false;
 			}
@@ -4913,8 +4919,10 @@ vncClient::~vncClient()
 		WaitForSingleObject(ThreadHandleCompressFolder, INFINITE);
 		CloseHandle(ThreadHandleCompressFolder);
 	}
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 	if (m_server->virtualDisplay)
 		m_server->virtualDisplay->disconnectDisplay(m_id, !m_server->AreThereMultipleViewers() && initialCapture_done);
+#endif
 }
 
 // Init
@@ -5321,7 +5329,11 @@ vncClient::SendUpdate(rfb::SimpleUpdateTracker &update)
 				hdr.encoding = Swap32IfLE(rfbEncodingExtDesktopSize);
 				hdr.r.w = Swap16IfLE(NewsizeW * m_nScale_viewer / m_nScale);
 				hdr.r.h = Swap16IfLE(NewsizeH * m_nScale_viewer / m_nScale);
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 				hdr.r.x = Swap16IfLE(m_server->m_virtualDisplaySupported);
+#else
+				hdr.r.x = 0;
+#endif
 				hdr.r.y = Swap16IfLE(m_lastDesktopSizeChangeError);
 				edsHdr.numberOfScreens = 1;
 				edsHdr.pad[0] = edsHdr.pad[1] = edsHdr.pad[2] = 0;

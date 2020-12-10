@@ -499,8 +499,10 @@ public:
 
 	bool OS_Shutdown;
 	void StopReconnectAll();
+#ifdef VIRTUAL_DISPLAY_SUPPORT
 	int m_virtualDisplaySupported;
 	VirtualDisplay *virtualDisplay;
+#endif
 
 protected:
 	// The vncServer UpdateTracker class
