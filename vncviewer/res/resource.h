@@ -165,6 +165,7 @@
 #define IDC_VIEWONLY_CHECK              1100
 #define IDC_RADIO1                      1101
 #define IDC_RADIODIRECT                 1101
+#define IDC_RADIO_ONLY_VIRTUAL          1101
 #define IDC_ULTRALAN_RB                 1102
 #define IDC_ULTRA_LAN_RB                1103
 #define IDC_FULLCOLORS_RADIO            1104
@@ -244,6 +245,7 @@
 #define IDC_EXIT_CHECK                  1171
 #define IDC_RADIO2                      1172
 #define IDC_RADIOREPEATER               1172
+#define IDC_RADIO_EXTEND                1172
 #define IDC_MANUAL                      1173
 #define IDC_CHECK2                      1174
 #define IDC_AUTOACCEPTNOWARN            1174
@@ -260,6 +262,7 @@
 #define IDC_SERVER_RECON_TIME           1183
 #define IDC_PREFIX                      1184
 #define IDC_RADIO3                      1185
+#define IDC_RADIO_NOVIRT                1185
 #define IDC_ENCODING_BASE               1199
 #define IDC_RAWRADIO                    2000
 #define IDC_RRERADIO                    2002
@@ -277,6 +280,7 @@
 #define IDC_LAST_ENCODING               2020
 #define IDC_CHECK3                      2021
 #define IDC_ONLYENCRYPTED               2021
+#define IDC_CHANGESERVER                2021
 #define IDC_SAVEPOS                     2022
 #define IDC_CHECK4                      2023
 #define IDC_HIDEMENU                    2023
@@ -310,6 +314,12 @@
 #define IDC_ZSTD                        2049
 #define IDC_LINE1                       2053
 #define IDC_LINE2                       2054
+#define IDC_SLIDERRES                   2054
+#define IDC_RES                         2055
+#define IDC_ALLMONS                     2056
+#define IDC_ALLOWSPAN                   2057
+#define IDC_GII                         2059
+#define IDC_SHOW_EXTEND                 2060
 #define IDC_STATIC_SPLIT                9000
 #define IDC_HOSTNAME_DEL                9001
 #define ID_SESSION_SET_CRECT            32777
@@ -604,9 +614,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        222
+#define _APS_NEXT_RESOURCE_VALUE        227
 #define _APS_NEXT_COMMAND_VALUE         50025
-#define _APS_NEXT_CONTROL_VALUE         2054
+#define _APS_NEXT_CONTROL_VALUE         2061
 #define _APS_NEXT_SYMED_VALUE           154
 #endif
 #endif

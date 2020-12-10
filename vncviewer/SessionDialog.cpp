@@ -79,7 +79,14 @@ SessionDialog::SessionDialog(VNCOptions *pOpt, ClientConnection* pCC, CDSMPlugin
 	fAutoScaling = m_pOpt->m_fAutoScaling;
 	fExitCheck = m_pOpt->m_fExitCheck;
 	m_fUseProxy = m_pOpt->m_fUseProxy;
-	selected= m_pOpt->m_selected_screen;
+	allowMonitorSpanning = m_pOpt->m_allowMonitorSpanning;
+	changeServerRes = m_pOpt->m_ChangeServerRes;
+	extendDisplay = m_pOpt->m_extendDisplay;
+	showExtend = m_pOpt->m_showExtend;
+	use_virt = m_pOpt->m_use_virt;
+	use_allmonitors = m_pOpt->m_use_allmonitors;
+	requestedWidth = m_pOpt->m_requestedWidth;
+	requestedHeight = m_pOpt->m_requestedHeight;
 	autoDetect = m_pOpt->autoDetect;
 	SwapMouse = m_pOpt->m_SwapMouse;
 	DisableClipboard = m_pOpt->m_DisableClipboard;
@@ -125,6 +132,7 @@ SessionDialog::SessionDialog(VNCOptions *pOpt, ClientConnection* pCC, CDSMPlugin
 
 
 	keepAliveInterval = m_pOpt->m_keepAliveInterval;
+	giiEnable = m_pOpt->m_giiEnable;
 	fAutoAcceptIncoming = m_pOpt->m_fAutoAcceptIncoming;
 	fAutoAcceptNoDSM = m_pOpt->m_fAutoAcceptNoDSM;
 	fRequireEncryption = m_pOpt->m_fRequireEncryption;
@@ -244,7 +252,7 @@ BOOL CALLBACK SessDlgProc(  HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
 			case IDC_SAVEAS:
 				_this->SaveConnection(hwnd, true);
 				break;
-			case IDCONNECT:
+			case IDCONNECT:				
 				_this->InitTab(hwnd);
 				return _this->connect(hwnd);			
 			case IDCANCEL:				
@@ -529,18 +537,6 @@ void SessionDialog::InitMRU(HWND hwnd)
 	IfHostExistLoadSettings(valname);
 }
 
-void SessionDialog::InitMonitors(HWND hwnd)
-{
-	//List monitors
-	tempdisplayclass tdc;
-	tdc.Init();
-	HWND hcomboscreen = GetDlgItem(  hwnd, IDC_SCREEN);
-	SendMessage(hcomboscreen, CB_RESETCONTENT, 0, 0);
-    for (int i = 0; i < tdc.nr_monitors+1; i++) 
-		SendMessage(hcomboscreen, CB_ADDSTRING, 0, (LPARAM) tdc.monarray[i].buttontext);
-	SendMessage(hcomboscreen, CB_SETCURSEL, selected, 0);
-}
-
 bool SessionDialog::connect(HWND hwnd)
 {
 	SettingsFromUI();
@@ -555,7 +551,14 @@ bool SessionDialog::connect(HWND hwnd)
 	m_pOpt->autoDetect = autoDetect;
 	m_pOpt->m_fExitCheck = fExitCheck;
 	m_pOpt->m_fUseProxy = m_fUseProxy;
-	m_pOpt->m_selected_screen = selected;
+	m_pOpt->m_allowMonitorSpanning = allowMonitorSpanning;
+	m_pOpt->m_ChangeServerRes = changeServerRes;
+	m_pOpt->m_extendDisplay = extendDisplay;
+	m_pOpt->m_showExtend = showExtend;
+	m_pOpt->m_use_virt = use_virt;
+	m_pOpt->m_use_allmonitors = use_allmonitors;
+	m_pOpt->m_requestedWidth = requestedWidth;
+	m_pOpt->m_requestedHeight = requestedHeight;
 	m_pOpt->m_SwapMouse = SwapMouse;
 	m_pOpt->m_DisableClipboard = DisableClipboard;
 	m_pOpt->m_Use8Bit = Use8Bit;
@@ -597,6 +600,7 @@ bool SessionDialog::connect(HWND hwnd)
 	strcpy_s(m_pOpt->m_imageFormat, imageFormat);
 	m_pOpt->m_scaling = scaling;
 	m_pOpt->m_keepAliveInterval = keepAliveInterval;
+	m_pOpt->m_giiEnable = giiEnable;
 	m_pOpt->m_fAutoAcceptIncoming = fAutoAcceptIncoming;
 	m_pOpt->m_fAutoAcceptNoDSM =fAutoAcceptNoDSM;
 	m_pOpt->m_fRequireEncryption = fRequireEncryption;
@@ -604,15 +608,9 @@ bool SessionDialog::connect(HWND hwnd)
 	m_pOpt->m_NoStatus = NoStatus;
 	m_pOpt->m_NoHotKeys = NoHotKeys;
 
-
-	HWND hPlugin = GetDlgItem(hwnd, IDC_PLUGIN_CHECK);
-	if (SendMessage(hPlugin, BM_GETCHECK, 0, 0) == BST_CHECKED){
-		TCHAR szPlugin[MAX_PATH];
-		GetDlgItemText(hwnd, IDC_PLUGINS_COMBO, szPlugin, MAX_PATH);
-		fUseDSMPlugin = true;
-		strcpy_s(szDSMPluginFilename, szPlugin);
+	if (fUseDSMPlugin){
 		if (!m_pDSMPlugin->IsLoaded()){
-			m_pDSMPlugin->LoadPlugin(szPlugin, listening);
+			m_pDSMPlugin->LoadPlugin(szDSMPluginFilename, listening);
 			if (m_pDSMPlugin->IsLoaded()){
 				if (m_pDSMPlugin->InitPlugin()){
 					if (!m_pDSMPlugin->SupportsMultithreaded())
@@ -640,11 +638,11 @@ bool SessionDialog::connect(HWND hwnd)
 			// But we must first check that the loaded plugin is the same that 
 			// the one currently selected...
 			m_pDSMPlugin->DescribePlugin();
-			if (_stricmp(m_pDSMPlugin->GetPluginFileName(), szPlugin)){
+			if (_stricmp(m_pDSMPlugin->GetPluginFileName(), szDSMPluginFilename)){
 				// Unload the previous plugin
 				m_pDSMPlugin->UnloadPlugin();
 				// Load the new selected one
-				m_pDSMPlugin->LoadPlugin(szPlugin, listening);
+				m_pDSMPlugin->LoadPlugin(szDSMPluginFilename, listening);
 			}
 			if (m_pDSMPlugin->IsLoaded()){
 				if (m_pDSMPlugin->InitPlugin()){
@@ -668,18 +666,27 @@ bool SessionDialog::connect(HWND hwnd)
 			}
 		}
 	}
-	else { // If Use plugin unchecked but the plugin is loaded, unload it
-		fUseDSMPlugin = false;
+	else {
 		if (m_pDSMPlugin->IsEnabled()) {
 			m_pDSMPlugin->UnloadPlugin();
 			m_pDSMPlugin->SetEnabled(false);
 		}
 	}
 
+	char fname[_MAX_PATH];
+	int disp = PORT_TO_DISPLAY(m_port);
+	char buffer[_MAX_PATH];
+
+	sprintf_s(fname, "%.15s-%d.vnc", m_host_dialog, (disp > 0 && disp < 100) ? disp : m_port);
+	getAppData(buffer);
+	strcat_s(buffer, "\\UltraVNC");
+	_mkdir(buffer);
+	strcat_s(buffer, "\\");
+	strcat_s(buffer, fname);
+	SaveToFile(buffer);
 	TCHAR hostname[256];
 	GetDlgItemText(hwnd, IDC_HOSTNAME_EDIT, hostname, 256);
-		m_pMRU->AddItem(hostname);
-
+	m_pMRU->AddItem(hostname);
 	EndDialog(hwnd, TRUE);
 	return TRUE;
 }

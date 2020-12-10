@@ -30,7 +30,9 @@
 #include "uvncUiAccess.h"
 #include "vncOSVersion.h"
 
+#ifndef WM_DPICHANGED
 #define WM_DPICHANGED       0x02E0
+#endif
 
 #define MSGFLT_ADD		1
 typedef BOOL (WINAPI *CHANGEWINDOWMESSAGEFILTER)(UINT message, DWORD dwFlag);

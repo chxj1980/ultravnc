@@ -319,12 +319,12 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 	}
 	old_inputDesktopSelected = inputDesktopSelected;
 
-    //vnclog.Print(LL_INTINFO, VNCLOG("desktop MM %i IsMM %i CurMon %d\n"), m_desktop->requested_multi_monitor, m_desktop->m_buffer.IsMultiMonitor(), m_desktop->m_current_monitor);
+    //vnclog.Print(LL_INTINFO, VNCLOG("desktop MM %i IsMM %i CurMon %d\n"), m_desktop->requested_all_monitor, m_desktop->m_buffer.IsAllMonitors(), m_desktop->m_current_monitor);
 		
 	if (m_desktop->m_displaychanged ||									
 			vncService::InputDesktopSelected()==0 ||							//handle logon and screensaver desktops
 			m_desktop->m_hookswitch||										//hook change request
-			m_desktop->requested_multi_monitor!=m_desktop->m_buffer.IsMultiMonitor() ||		//monitor change request
+			m_desktop->requested_all_monitor!=m_desktop->m_buffer.IsAllMonitors() ||		//monitor change request
 			m_desktop->m_old_monitor != m_desktop->m_current_monitor
 			){
 		// We need to wait until viewer has send if he support Size changes
@@ -337,8 +337,8 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 			vnclog.Print(LL_INTERR, VNCLOG("++++Screensize changed \n"));
 		if (m_desktop->m_hookswitch)									
 			vnclog.Print(LL_INTERR, VNCLOG("m_hookswitch \n"));
-		if (m_desktop->requested_multi_monitor!=m_desktop->m_buffer.IsMultiMonitor()) 
-			vnclog.Print(LL_INTERR, VNCLOG("desktop switch %i %i \n"),m_desktop->requested_multi_monitor,m_desktop->m_buffer.IsMultiMonitor());
+		if (m_desktop->requested_all_monitor!=m_desktop->m_buffer.IsAllMonitors()) 
+			vnclog.Print(LL_INTERR, VNCLOG("desktop switch %i %i \n"),m_desktop->requested_all_monitor,m_desktop->m_buffer.IsAllMonitors());
 		if (!m_server->IsThereFileTransBusy())
 			if (vncService::InputDesktopSelected()==0)						
 				vnclog.Print(LL_INTERR, VNCLOG("++++InputDesktopSelected \n"));
@@ -368,17 +368,17 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 			//keep a copy of the old screen size, so we can check for changes later on
 			oldscrinfo = m_desktop->m_scrinfo;
 						
-			if (m_desktop->requested_multi_monitor!=m_desktop->m_buffer.IsMultiMonitor()) {
+			if (m_desktop->requested_all_monitor!=m_desktop->m_buffer.IsAllMonitors()) {
 				m_desktop->Checkmonitors();
-				m_desktop->requested_multi_monitor=m_desktop->m_buffer.IsMultiMonitor();
+				m_desktop->requested_all_monitor=m_desktop->m_buffer.IsAllMonitors();
 
-				bool orig_monitor=m_desktop->show_multi_monitors;	
-				m_desktop->show_multi_monitors = true;
-				if (m_desktop->requested_multi_monitor && m_desktop->nr_monitors>1) 
-					m_desktop->show_multi_monitors = true;
+				bool orig_monitor=m_desktop->show_all_monitors;	
+				m_desktop->show_all_monitors = true;
+				if (m_desktop->requested_all_monitor && m_desktop->nr_monitors>1) 
+					m_desktop->show_all_monitors = true;
 				else 
-					m_desktop->show_multi_monitors = false;							
-				if ( orig_monitor!=m_desktop->show_multi_monitors) {
+					m_desktop->show_all_monitors = false;							
+				if ( orig_monitor!=m_desktop->show_all_monitors) {
 						monitor_changed = true;
 						m_desktop->m_old_monitor = m_desktop->m_current_monitor;
 				}
@@ -423,7 +423,7 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 						if (m_desktop->m_screenCapture && XRichCursorEnabled) 
 								m_desktop->m_screenCapture->noHardwareCursor();
 
-						m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx,m_desktop->m_ScreenOffsety,m_desktop->nr_monitors);
+						m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors == 1);
 
 						// sf@2003 - After a new Startup(), we check if the required video driver
 						// is actually available. If not, we force hookdll
@@ -495,75 +495,12 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 					if (monitor_changed && m_desktop->m_screenCapture) {
 						// we are using the driver, so a monitor change is a view change, like a special kind of single window
 						// m_desktop->current_monitor is the new monitor we want to see
-						// monitor size mymonitor[m_desktop->current_monitor-1]
 						// m_SWOffset is used by the encoders to send the correct coordinates to the viewer
 						// Cliprect, buffer coordinates
-						if (m_desktop->show_multi_monitors) {
+						if (m_desktop->show_all_monitors) {
 							vnclog.Print(LL_INTINFO, VNCLOG("Request Monitor %d\n"), m_desktop->m_current_monitor);
 							//int mon[2] = {0};
-							switch (m_desktop->m_current_monitor) {
-								case MULTI_MON_FIRST_TWO: {
-									mon[0] = 3;
-									mon[1] = 3;
-									if (m_desktop->nr_monitors > 2)
-										SetFirstMonitorNummers();
-#if 0
-									int actmonx = m_desktop->mymonitor[mon[0]].offsetx < m_desktop->mymonitor[mon[1]].offsetx ? mon[0] : mon[1];
-									int actmony = m_desktop->mymonitor[mon[0]].offsety < m_desktop->mymonitor[mon[1]].offsety ? mon[0] : mon[1];
-
-									m_desktop->m_SWOffsetx = m_desktop->mymonitor[actmonx].offsetx - m_desktop->mymonitor[3].offsetx;
-									m_desktop->m_SWOffsety = m_desktop->mymonitor[actmony].offsety - m_desktop->mymonitor[3].offsety;
-
-									m_desktop->m_ScreenOffsetx = m_desktop->mymonitor[actmonx].offsetx;
-									m_desktop->m_ScreenOffsety = m_desktop->mymonitor[actmony].offsety;
-									m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors);
-
-									m_desktop->m_Cliprect.tl.x = m_desktop->mymonitor[actmonx].offsetx - m_desktop->mymonitor[3].offsetx;
-									m_desktop->m_Cliprect.tl.y = m_desktop->mymonitor[actmony].offsety - m_desktop->mymonitor[3].offsety;
-									m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[actmonx].offsetx + m_desktop->mymonitor[mon[0]].Width + m_desktop->mymonitor[mon[1]].Width - m_desktop->mymonitor[3].offsetx;
-									m_desktop->m_Cliprect.br.y = m_desktop->mymonitor[actmony].offsety + m_desktop->mymonitor[mon[0]].Height - m_desktop->mymonitor[3].offsety; //TODO: monitor on top
-
-
-									rc.right = m_desktop->mymonitor[actmonx].Width;
-									rc.bottom = m_desktop->mymonitor[actmony].Height;
-#else
-									m_desktop->m_SWOffsetx=std::min(m_desktop->mymonitor[mon[0]].offsetx, m_desktop->mymonitor[mon[1]].offsetx);
-									m_desktop->m_SWOffsety=std::min(m_desktop->mymonitor[mon[0]].offsety, m_desktop->mymonitor[mon[1]].offsety);
-									m_server->SetBufferOffset(m_desktop->m_SWOffsetx,m_desktop->m_SWOffsety);
-									m_desktop->m_Cliprect.tl.x = m_desktop->m_SWOffsetx;
-									m_desktop->m_Cliprect.tl.y = m_desktop->m_SWOffsety;
-									if (m_desktop->mymonitor[mon[0]].offsetx < m_desktop->mymonitor[mon[1]].offsetx)
-										m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[mon[1]].offsetx+m_desktop->mymonitor[mon[1]].Width;											
-									else
-										m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[mon[0]].offsetx+m_desktop->mymonitor[mon[0]].Width;										
-									m_desktop->m_Cliprect.br.y = std::max(m_desktop->mymonitor[mon[0]].Height,m_desktop->mymonitor[mon[1]].Height);
-									rc.right = m_desktop->m_Cliprect.br.x - m_desktop->m_Cliprect.tl.x;
-									rc.bottom = m_desktop->m_Cliprect.br.y;
-#endif
-									vnclog.Print(LL_INTINFO, VNCLOG("First two Monitor: width = %d height = %d\n"), rc.right, rc.bottom);
-								} break;
-
-								case MULTI_MON_LAST_TWO:
-								{
-									mon[0] = 3;
-									mon[1] = 3;
-									if (m_desktop->nr_monitors > 2) 
-										SetLastMonitorNummers();
-									m_desktop->m_SWOffsetx=std::min(m_desktop->mymonitor[mon[0]].offsetx, m_desktop->mymonitor[mon[1]].offsetx);
-									m_desktop->m_SWOffsety=std::min(m_desktop->mymonitor[mon[0]].offsety, m_desktop->mymonitor[mon[1]].offsety);
-									m_server->SetBufferOffset(m_desktop->m_SWOffsetx,m_desktop->m_SWOffsety);
-									m_desktop->m_Cliprect.tl.x = m_desktop->m_SWOffsetx;
-									m_desktop->m_Cliprect.tl.y = m_desktop->m_SWOffsety;									
-									if (m_desktop->mymonitor[mon[0]].offsetx < m_desktop->mymonitor[mon[1]].offsetx)
-										m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[mon[1]].offsetx+m_desktop->mymonitor[mon[1]].Width;		
-									else
-										m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[mon[0]].offsetx+m_desktop->mymonitor[mon[0]].Width;
-									m_desktop->m_Cliprect.br.y = std::max(m_desktop->mymonitor[0].Height, m_desktop->mymonitor[mon[1]].Height);
-									rc.right = m_desktop->m_Cliprect.br.x - m_desktop->m_Cliprect.tl.x;
-									rc.bottom = m_desktop->m_Cliprect.br.y;
-									vnclog.Print(LL_INTINFO, VNCLOG("Last two monitor: width = %d height = %d\n"), rc.right, rc.bottom);
-								} break;
-
+							switch (m_desktop->m_current_monitor) {							
 								case MULTI_MON_ALL:
 								default:
 								{
@@ -572,35 +509,35 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 									m_server->SetBufferOffset(m_desktop->m_SWOffsetx,m_desktop->m_SWOffsety);
 									m_desktop->m_Cliprect.tl.x = 0;
 									m_desktop->m_Cliprect.tl.y = 0;
-									m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[3].Width;
-									m_desktop->m_Cliprect.br.y = m_desktop->mymonitor[3].Height;
-									rc.right = m_desktop->mymonitor[3].Width;
-									rc.bottom = m_desktop->mymonitor[3].Height;
+									m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[MULTI_MON_ALL].Width;
+									m_desktop->m_Cliprect.br.y = m_desktop->mymonitor[MULTI_MON_ALL].Height;
+									rc.right = m_desktop->mymonitor[MULTI_MON_ALL].Width;
+									rc.bottom = m_desktop->mymonitor[MULTI_MON_ALL].Height;
 									vnclog.Print(LL_INTINFO, VNCLOG("Monitor %d: width = %d height = %d\n"), m_desktop->m_current_monitor, rc.right, rc.bottom);
 
 
-                                    m_desktop->m_ScreenOffsetx = m_desktop->mymonitor[3].offsetx;
-                                    m_desktop->m_ScreenOffsety = m_desktop->mymonitor[3].offsety;
-                                    m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors);
+                                    m_desktop->m_ScreenOffsetx = m_desktop->mymonitor[MULTI_MON_ALL].offsetx;
+                                    m_desktop->m_ScreenOffsety = m_desktop->mymonitor[MULTI_MON_ALL].offsety;
+                                    m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors == 1);
 								}
 							}
 						}
 						else
 						{							
-							int nCurrentMon = m_desktop->m_current_monitor - 1;
+							int nCurrentMon = m_desktop->m_current_monitor;
 								
-							m_desktop->m_SWOffsetx=m_desktop->mymonitor[nCurrentMon].offsetx-m_desktop->mymonitor[3].offsetx;
-							m_desktop->m_SWOffsety=m_desktop->mymonitor[nCurrentMon].offsety-m_desktop->mymonitor[3].offsety;
+							m_desktop->m_SWOffsetx=m_desktop->mymonitor[nCurrentMon].offsetx-m_desktop->mymonitor[MULTI_MON_ALL].offsetx;
+							m_desktop->m_SWOffsety=m_desktop->mymonitor[nCurrentMon].offsety-m_desktop->mymonitor[MULTI_MON_ALL].offsety;
 							m_server->SetBufferOffset(m_desktop->m_SWOffsetx,m_desktop->m_SWOffsety);
 
 							m_desktop->m_ScreenOffsetx = m_desktop->mymonitor[nCurrentMon].offsetx;
 							m_desktop->m_ScreenOffsety = m_desktop->mymonitor[nCurrentMon].offsety;
-							m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors);
+							m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors == 1);
 
-							m_desktop->m_Cliprect.tl.x = m_desktop->mymonitor[nCurrentMon].offsetx - m_desktop->mymonitor[3].offsetx;
-							m_desktop->m_Cliprect.tl.y = m_desktop->mymonitor[nCurrentMon].offsety - m_desktop->mymonitor[3].offsety;
-							m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[nCurrentMon].offsetx + m_desktop->mymonitor[nCurrentMon].Width - m_desktop->mymonitor[3].offsetx;
-							m_desktop->m_Cliprect.br.y = m_desktop->mymonitor[nCurrentMon].offsety + m_desktop->mymonitor[nCurrentMon].Height - m_desktop->mymonitor[3].offsety;
+							m_desktop->m_Cliprect.tl.x = m_desktop->mymonitor[nCurrentMon].offsetx - m_desktop->mymonitor[MULTI_MON_ALL].offsetx;
+							m_desktop->m_Cliprect.tl.y = m_desktop->mymonitor[nCurrentMon].offsety - m_desktop->mymonitor[MULTI_MON_ALL].offsety;
+							m_desktop->m_Cliprect.br.x = m_desktop->mymonitor[nCurrentMon].offsetx + m_desktop->mymonitor[nCurrentMon].Width - m_desktop->mymonitor[MULTI_MON_ALL].offsetx;
+							m_desktop->m_Cliprect.br.y = m_desktop->mymonitor[nCurrentMon].offsety + m_desktop->mymonitor[nCurrentMon].Height - m_desktop->mymonitor[MULTI_MON_ALL].offsety;
 
 							
 							rc.right = m_desktop->mymonitor[nCurrentMon].Width;
@@ -638,8 +575,9 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 					if (m_desktop->m_screensize_changed) 
 						{
 							m_desktop->m_screensize_changed = false;
-							m_server->SetNewSWSize(m_desktop->m_scrinfo.framebufferWidth,m_desktop->m_scrinfo.framebufferHeight,FALSE);//changed no lock ok
-							m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx,m_desktop->m_ScreenOffsety,m_desktop->nr_monitors);// no lock ok
+							monitor_changed = false;
+							m_server->SetNewSWSize(m_desktop->m_scrinfo.framebufferWidth,m_desktop->m_scrinfo.framebufferHeight, monitor_changed);//changed no lock ok
+							m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx, m_desktop->m_ScreenOffsety, m_desktop->nr_monitors == 1);// no lock ok							
 						}
 					
 					if (monitor_changed && m_desktop->m_screenCapture)
@@ -652,45 +590,6 @@ bool vncDesktopThread::handle_display_change(HANDLE& threadHandle, rfb::Region2D
 
 	return true;
 }
-
-void vncDesktopThread::SetFirstMonitorNummers()
-{
-		if ((m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[1].offsetx && m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[2].offsetx) ||
-				(m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[0].offsetx && m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[2].offsetx)) {
-			mon[0] = 0;
-			mon[1] = 1;
-		}
-		if ((m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[2].offsetx && m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[1].offsetx) ||
-				(m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[0].offsetx && m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[2].offsetx)) {
-			mon[0] = 0;
-			mon[1] = 2;
-		}
-		if ((m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[2].offsetx && m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[0].offsetx) ||
-				(m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[1].offsetx && m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[0].offsetx)) {
-			mon[0] = 1;
-			mon[1] = 2;
-		}
-}
-
-void vncDesktopThread::SetLastMonitorNummers()
-{
-	if ((m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[1].offsetx && m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[2].offsetx) ||
-			(m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[2].offsetx && m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[1].offsetx)) {
-		mon[0] = 1;
-		mon[1] = 2;
-	}
-	if ((m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[0].offsetx && m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[2].offsetx) ||
-			(m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[2].offsetx && m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[0].offsetx)) {
-		mon[0] = 0;
-		mon[1] = 2;
-	}
-	if ((m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[1].offsetx && m_desktop->mymonitor[1].offsetx < m_desktop->mymonitor[0].offsetx) ||
-			(m_desktop->mymonitor[2].offsetx < m_desktop->mymonitor[0].offsetx && m_desktop->mymonitor[0].offsetx < m_desktop->mymonitor[1].offsetx)) {
-		mon[0] = 0;
-		mon[1] = 1;
-	}
-}
-
 
 void vncDesktopThread::do_polling(HANDLE& threadHandle, rfb::Region2D& rgncache, int& fullpollcounter, bool cursormoved)
 {
@@ -851,7 +750,7 @@ vncDesktopThread::run_undetached(void *arg)
 	// The region cache areas are checked for changes before an update
 	// is triggered, and the changed areas are passed to the UpdateTracker
 	rgncache = m_desktop->m_Cliprect;
-	m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx,m_desktop->m_ScreenOffsety,m_desktop->nr_monitors);
+	m_server->SetScreenOffset(m_desktop->m_ScreenOffsetx,m_desktop->m_ScreenOffsety,m_desktop->nr_monitors == 1);
 	
 
 	// The previous cursor position is stored, to allow us to erase the
@@ -905,7 +804,6 @@ vncDesktopThread::run_undetached(void *arg)
     //DWORD MIN_UPDATE_INTERVAL=33;
 	/////////////////////
 	looping=true;
-	int waiting_update=0;
 	SetEvent(m_desktop->restart_event);
 	
 	rgncache.assign_union(rfb::Region2D(m_desktop->m_Cliprect));
@@ -985,7 +883,6 @@ vncDesktopThread::run_undetached(void *arg)
 					strcpy_s(g_hookstring,"ddengine");
 				case WAIT_TIMEOUT:				
 				case WAIT_OBJECT_0: {
-					waiting_update=0;
 					ResetEvent(m_desktop->trigger_events[0]);
 							{
 #ifdef _DEBUG
@@ -1327,7 +1224,6 @@ vncDesktopThread::run_undetached(void *arg)
 					rgncache.assign_union(m_desktop->rgnpump);
 					m_desktop->rgnpump.clear();
 					m_desktop->lock_region_add=false;
-					waiting_update++;
 					break;
 				case WAIT_OBJECT_0+2:
 					ResetEvent(m_desktop->trigger_events[2]);
@@ -1345,8 +1241,10 @@ vncDesktopThread::run_undetached(void *arg)
 					ResetEvent(m_desktop->trigger_events[3]);
 					break;
 				case WAIT_OBJECT_0+4:
+					m_desktop->lock_region_add = true;
 					rgncache.assign_union(m_desktop->m_Cliprect);
 					ResetEvent(m_desktop->trigger_events[4]);
+					m_desktop->lock_region_add = false;
 					break;
 				case WAIT_OBJECT_0+5:
 					//break to close

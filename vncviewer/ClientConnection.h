@@ -152,7 +152,6 @@ public:
 
     void RebuildToolbar(HWND hwnd); // 24 March 2008 jdp
 	void GTGBS_CreateDisplay(void);
-	void GTGBS_ScrollToolbar(int dx, int dy);
 	void CreateButtons(BOOL mini,BOOL ultra);
 	//ClientConnection();
 	ClientConnection(VNCviewerApp *pApp);
@@ -228,7 +227,6 @@ private:
 	POINT m_SWpoint;
 	HCURSOR hNewCursor;
 	HCURSOR hOldCursor;
-	BOOL skipprompt2;
 
 	void Init(VNCviewerApp *pApp);
 	void CreateDisplay();
@@ -316,8 +314,7 @@ private:
 	void ReadScreenUpdate();
 	void Update(RECT *pRect);
 	void SizeWindow(bool reconnect = false);
-	bool sizing_set;
-	bool ScrollScreen(int dx, int dy);
+	bool ScrollScreen(int dx, int dy, bool absolute = false);
 	void UpdateScrollbars();
     
 	void ReadRawRect(rfbFramebufferUpdateRectHeader *pfburh);
@@ -342,6 +339,9 @@ private:
 	// ClientConnectionFullScreen.cpp
 	void SetFullScreenMode(bool enable);
 	bool InFullScreenMode();
+	void saveScreenPosition();
+	void restoreScreenPosition();
+	RECT mainRect;
 	void RealiseFullScreenMode();
 	void BorderlessMode();
 	bool BumpScroll(int x, int y);
@@ -349,6 +349,7 @@ private:
 
 	//SINGLE WINDOW
 	void ReadNewFBSize(rfbFramebufferUpdateRectHeader *pfburh);
+	void SendMonitorSizes();
 
 	// Caching
 	void SaveArea(RECT &r);
@@ -728,6 +729,13 @@ private:
 	int m_lLastChangeTime; // sf@2003 - Last time the Auto mode has changed the encoding
 	int m_lLastChangeTimeTimeout;  //dynamic timeout
 	bool m_fScalingDone; // sf@2003 - Auto Scaling flag
+	bool m_FullScreen;
+
+	int offsetXExtSDisplay;
+	int offsetYExtSDisplay;
+	int widthExtSDisplay;
+	int heightExtSDisplay;
+	bool extSDisplay;
 
 	rdr::FdInStream* fis;
 	rdr::ZlibInStream* zis;
@@ -813,6 +821,8 @@ private:
 
 
 	jpeg_source_mgr m_jpegSrcManager;
+	bool desktopsize_requested;
+	int ShowToolbar;
 
 
 public:

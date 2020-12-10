@@ -101,11 +101,46 @@ struct MyTouchINfo
 typedef BOOL(__cdecl*PInitializeTouchInjection)(int);
 typedef BOOL(__cdecl*PInjectTouch)(int points, MyTouchINfo *ti_array);
 #endif
+typedef BOOL(WINAPI* PtrInjectTouchInput)(UINT32, POINTER_TOUCH_INFO*);
+typedef BOOL(WINAPI* PtrInitializeTouchInjection)(UINT32, DWORD);
 #endif
 
 extern int CheckUserGroupPasswordUni(char * userin,char *password,const char *machine);
 
 using namespace rfb;
+
+class vncClientUpdateThread : public omni_thread
+{
+public:
+
+	// Init
+	BOOL Init(vncClient* client);
+
+	// Kick the thread to send an update
+	void Trigger();
+
+	// Kill the thread
+	void Kill();
+
+	// Disable/enable updates
+	void EnableUpdates(BOOL enable);
+
+	void get_time_now(unsigned long* abs_sec, unsigned long* abs_nsec);
+
+	// The main thread function
+	virtual void* run_undetached(void* arg);
+
+protected:
+	virtual ~vncClientUpdateThread();
+
+	// Fields
+protected:
+	vncClient* m_client;
+	omni_condition* m_signal;
+	omni_condition* m_sync_sig;
+	BOOL m_active;
+	BOOL m_enable;
+};
 
 class vncClient
 {
@@ -145,6 +180,7 @@ public:
 	virtual void UpdatePalette(bool lock);
 	virtual void UpdateLocalFormat(bool lock);
 	int nr_incr_rgn_empty;
+	char displayname[256] = {};
 
 	// Is the client waiting on an update?
 	// YES IFF there is an incremental update region,
@@ -210,9 +246,8 @@ public:
 	virtual void EnableProtocol_no_mutex();
 	// resize desktop
 	virtual BOOL SetNewSWSize(long w,long h,BOOL desktop);
-	virtual BOOL SetNewSWSizeFR(long w,long h,BOOL desktop);
 	virtual void SetBufferOffset(int x,int y);
-	virtual void SetScreenOffset(int x,int y,int type);
+	virtual void SetScreenOffset(int x,int y, bool single_display);
 	virtual void InitialUpdate(bool value);
 
 #ifdef TEXT_CHAT_SUPPORT
@@ -222,6 +257,7 @@ public:
 	virtual void SetUltraViewer(bool fTrue) { m_fUltraViewer = fTrue;};
 	virtual bool IsUltraViewer() { return m_fUltraViewer;};
 #endif
+	bool singleExtendRequested() { return m_singleExtendMode; }
 
 	virtual void EnableCache(BOOL enabled);
 
@@ -443,7 +479,7 @@ public:
 	int				monitor_Offsety;
 	int				m_ScreenOffsetx;
 	int				m_ScreenOffsety;
-	int				m_display_type;
+	int				m_single_display;
 	BOOL			m_NewSWUpdateWaiting;
 	rfbProtocolVersionMsg ProtocolVersionMsg;
 	//Timer Sendtimer;
@@ -472,6 +508,8 @@ protected:
 
 	// Pixel translation & encoding handler
 	vncEncodeMgr	m_encodemgr;
+	bool			m_singleExtendMode;
+	bool			m_firstExtDesktop;
 
 	// The server
 	vncServer		*m_server;
@@ -522,6 +560,9 @@ protected:
 
 	//SINGLE WINDOW
 	BOOL			m_use_NewSWSize;
+	BOOL			m_use_ExtDesktopSize;
+	int m_requestedDesktopSizeChange;
+	int m_lastDesktopSizeChangeError;
 	BOOL			m_NewSWDesktop;
 	int				NewsizeW;
 	int				NewsizeH;
@@ -701,6 +742,8 @@ protected:
 	PInjectTouch DLL_PInjectTouch;
 	HMODULE win8dllHandle;
 #endif
+	PtrInjectTouchInput InjectTouchInputUVNC;
+	PtrInitializeTouchInjection InitializeTouchInjectionUVNC;
 	bool *point_status;
 	DWORD nr_points;
 #endif

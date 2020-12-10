@@ -45,6 +45,7 @@
 #include "mmsystem.h" // sf@2002
 
 #include "vncmenu.h"
+#include "VirtualDisplay.h"
 
 #include "Localization.h" // ACT : Add localization on messages
 bool g_Server_running;
@@ -161,7 +162,8 @@ vncServer::vncServer()
 	m_poll_undercursor = TRUE;
 
 	m_poll_oneventonly = FALSE;
-	m_MaxCpu=20;
+	m_MaxCpu=100;
+	m_MaxFPS = 25;
 	m_poll_consoleonly = TRUE;
 
 	m_deskDupEngine = TRUE;
@@ -213,7 +215,6 @@ vncServer::vncServer()
 	m_pDSMPlugin = new CDSMPlugin();
 
 	m_fDSMPluginEnabled = false;
-	m_NatPluginEnabled = false;
 	strcpy_s(m_szDSMPlugin, "");
 #endif
 
@@ -258,7 +259,11 @@ vncServer::vncServer()
     startTime = GetTickCount();
 	m_fSendExtraMouse = TRUE;
 	retryThreadHandle = NULL;
-	retrysock = NULL;	
+	retrysock = NULL;
+	virtualDisplay = NULL;
+	m_virtualDisplaySupported = VirtualDisplay::InstallDriver(false);
+	if (m_virtualDisplaySupported)
+		virtualDisplay = new VirtualDisplay();
 }
 
 vncServer::~vncServer()
@@ -364,6 +369,9 @@ vncServer::~vncServer()
 	//sometimes crash, vnclog seems already removed
 	//	vnclog.Print(LL_STATE, VNCLOG("shutting down server object(4)\n"));
 	g_Server_running=false;
+
+	if (virtualDisplay)
+		delete virtualDisplay;
 }
 
 void
@@ -684,8 +692,9 @@ vncServer::Authenticated(vncClientId clientid)
 				// Preset toggle prim/sec/both
 				// change, to get it final stable, we only gonna handle single and multi monitors
 				// 1=single monitor, 2 is multi monitor
-				m_desktop->m_buffer.MultiMonitors(1);
-				if (Secondary()) m_desktop->m_buffer.MultiMonitors(2);
+				m_desktop->m_buffer.SetAllMonitors(false);
+				if (Secondary()) 
+					m_desktop->m_buffer.SetAllMonitors(true);
 
 
                 DWORD startup_status = 0;
@@ -854,6 +863,18 @@ bool vncServer::AreThereMultipleViewers()
 {
 	if (m_authClients.size()<=1) return false;
 	else return true;
+}
+
+bool vncServer::singleExtendRequested()
+{
+	vncClientList::iterator i;
+	vncClient* pClient = NULL;
+
+	for (i = m_authClients.begin(); i != m_authClients.end(); i++)
+	{
+		if (GetClient(*i)->singleExtendRequested())return true;
+	}
+	return false;
 }
 
 
@@ -2222,24 +2243,6 @@ vncServer::SetNewSWSize(long w,long h,BOOL desktop)
 }
 
 void
-vncServer::SetNewSWSizeFR(long w,long h,BOOL desktop)
-{
-	vncClientList::iterator i;
-		
-	omni_mutex_lock l(m_clientsLock,63);
-
-	// Post this screen size update to all the connected clients
-	for (i = m_authClients.begin(); i != m_authClients.end(); i++)
-	{
-		// Post the update
-		if (!GetClient(*i)->SetNewSWSizeFR(w,h,desktop)) {
-			vnclog.Print(LL_INTINFO, VNCLOG("Unable to set new desktop size\n"));
-			KillClient(*i);
-		}
-	}
-}
-
-void
 vncServer::SetBufferOffset(int x,int y)
 {
 	vncClientList::iterator i;
@@ -2272,7 +2275,7 @@ vncServer::InitialUpdate(bool value)
 }
 
 void
-vncServer::SetScreenOffset(int x,int y,int type)
+vncServer::SetScreenOffset(int x,int y, bool single_display)
 {
 	vncClientList::iterator i;
 		
@@ -2282,7 +2285,7 @@ vncServer::SetScreenOffset(int x,int y,int type)
 	for (i = m_authClients.begin(); i != m_authClients.end(); i++)
 	{
 		// Post the update
-		GetClient(*i)->SetScreenOffset(x,y,type);
+		GetClient(*i)->SetScreenOffset(x, y, single_display);
 	}
 
 }

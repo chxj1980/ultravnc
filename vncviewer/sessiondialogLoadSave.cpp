@@ -40,7 +40,7 @@ void SessionDialog::SaveConnection(HWND hwnd, bool saveAs)
 	sprintf_s(fname, "%.15s-%d.vnc", m_host_dialog, (disp > 0 && disp < 100) ? disp : m_port);
 	char buffer[_MAX_PATH];
 	getAppData(buffer);
-	strcat_s(buffer,"\\vnc");
+	strcat_s(buffer,"\\UltraVNC");
 	_mkdir(buffer);
 
 	if ( saveAs) {
@@ -180,7 +180,16 @@ void SessionDialog::SaveToFile(char *fname, bool asDefault)
 	saveInt("QuickOption",			quickoption,	fname);
 	saveInt("UseDSMPlugin",			fUseDSMPlugin,	fname);
 	saveInt("UseProxy",				m_fUseProxy,	fname);
-	saveInt("selectedscreen",		selected,	fname);
+	saveInt("allowMonitorSpanning", allowMonitorSpanning, fname);
+	saveInt("ChangeServerRes", changeServerRes, fname);
+	saveInt("extendDisplay", extendDisplay, fname);
+	saveInt("showExtend", showExtend, fname);
+	saveInt("use_virt", use_virt, fname);	
+	saveInt("useAllMonitors", use_allmonitors, fname);
+	saveInt("requestedWidth", requestedWidth, fname);
+	saveInt("requestedHeight", requestedHeight, fname);
+
+
 	WritePrivateProfileString("options", "DSMPlugin",	szDSMPluginFilename, fname);
 	WritePrivateProfileString("options", "folder",		folder, fname);
 	WritePrivateProfileString("options", "prefix",		prefix, fname);
@@ -190,7 +199,10 @@ void SessionDialog::SaveToFile(char *fname, bool asDefault)
 	saveInt("ThrottleMouse",		throttleMouse,    fname); 
 	saveInt("KeepAliveInterval",    keepAliveInterval,    fname);	
 	saveInt("AutoAcceptIncoming",	fAutoAcceptIncoming, fname);  
-	saveInt("AutoAcceptNoDSM",		fAutoAcceptNoDSM, fname);	    
+	saveInt("AutoAcceptNoDSM",		fAutoAcceptNoDSM, fname);
+#ifdef _Gii
+	saveInt("GiiEnable", giiEnable, fname);
+#endif
 	saveInt("RequireEncryption",	fRequireEncryption, fname);
 	saveInt("restricted",			restricted,		fname);  //hide menu
 	saveInt("nostatus",				NoStatus,			fname); //hide status window
@@ -252,7 +264,16 @@ void SessionDialog::LoadFromFile(char *fname)
   quickoption  =		readInt("QuickOption",		quickoption, fname);
   fUseDSMPlugin =		readInt("UseDSMPlugin",		fUseDSMPlugin, fname) != 0;
   m_fUseProxy =			readInt("UseProxy",			m_fUseProxy, fname) != 0;
-  selected=				readInt("selectedscreen",			selected, fname);
+  allowMonitorSpanning = readInt("allowMonitorSpanning", allowMonitorSpanning, fname);
+  changeServerRes = readInt("ChangeServerRes", changeServerRes, fname);
+  extendDisplay = readInt("extendDisplay", extendDisplay, fname);
+  showExtend = readInt("showExtend", showExtend, fname);
+  use_virt = readInt("use_virt", use_virt, fname);
+  use_allmonitors = readInt("useAllMonitors", use_allmonitors, fname);
+
+  requestedWidth = readInt("requestedWidth", requestedWidth, fname);
+  requestedHeight = readInt("requestedHeight", requestedHeight, fname);
+
   GetPrivateProfileString("options", "DSMPlugin", "NoPlugin", szDSMPluginFilename, MAX_PATH, fname);
   GetPrivateProfileString("options", "folder", folder, folder, MAX_PATH, fname);
   GetPrivateProfileString("options", "prefix", prefix, prefix, 56, fname);
@@ -267,7 +288,7 @@ void SessionDialog::LoadFromFile(char *fname)
       keepAliveInterval = (FTTimeout  - KEEPALIVE_HEADROOM); 
   throttleMouse = readInt("ThrottleMouse", throttleMouse, fname); // adzm 2010-10
 #ifdef _Gii
-  giienable = readInt("GiiEnable", (int)giienable, fname) ? true : false;
+  giiEnable = readInt("GiiEnable", (int)giiEnable, fname) ? true : false;
 #endif
   fAutoAcceptIncoming = readInt("AutoAcceptIncoming", (int)fAutoAcceptIncoming, fname) ? true : false;
   fAutoAcceptNoDSM = readInt("AutoAcceptNoDSM", (int)fAutoAcceptNoDSM, fname) ? true : false;
@@ -282,7 +303,7 @@ void SessionDialog::LoadFromFile(char *fname)
 
 void SessionDialog::getAppData(char * buffer)
 {
-	BOOL result = SHGetSpecialFolderPathA( NULL, buffer, CSIDL_LOCAL_APPDATA, false );
+	BOOL result = SHGetSpecialFolderPathA( NULL, buffer, CSIDL_APPDATA, false );
 }
 
 void SessionDialog::IfHostExistLoadSettings(char *hostname)
@@ -296,7 +317,7 @@ void SessionDialog::IfHostExistLoadSettings(char *hostname)
 	sprintf_s(fname, "%.15s-%d.vnc", tmphost, (disp > 0 && disp < 100) ? disp : port);
 	char buffer[_MAX_PATH];
 	getAppData(buffer);
-	strcat_s(buffer,"\\vnc\\");
+	strcat_s(buffer,"\\UltraVNC\\");
 	strcat_s(buffer,fname);
 	FILE *file = fopen(buffer, "r");
 	if (strlen(hostname) != 0 && file ) {
@@ -350,7 +371,14 @@ void SessionDialog::SetDefaults()
 	quickoption = 1;				// sf@2002 - Auto Mode as default
 	fUseDSMPlugin = false;
 	oldplugin=false;
-	selected=1;
+	allowMonitorSpanning = 0;
+	changeServerRes = 0;
+	extendDisplay = 0;
+	showExtend = 0;
+	use_virt = 0;
+	use_allmonitors =0;
+	requestedWidth = 0;
+	requestedHeight = 0;
 	_tcscpy_s(prefix, "vnc_");
 	_tcscpy_s(imageFormat, ".jpeg");
 	fAutoAcceptIncoming = false;
@@ -368,4 +396,5 @@ void SessionDialog::SetDefaults()
 	setdefaults = true;
 	SettingsToUI();
 	setdefaults = false;
+	giiEnable = false;
 }

@@ -38,6 +38,7 @@
 // and via the ORB interface
 extern bool			fShutdownOrdered;
 class vncServer;
+class VirtualDisplay;
 
 #if (!defined(_WINVNC_VNCSERVER))
 #define _WINVNC_VNCSERVER
@@ -110,6 +111,7 @@ public:
 #endif
 	bool IsUltraVNCViewer();
 	bool AreThereMultipleViewers();
+	bool singleExtendRequested();
 
 	virtual UINT AuthClientCount();
 	virtual UINT UnauthClientCount();
@@ -148,9 +150,8 @@ public:
 
 	virtual vncDesktop* GetDesktopPointer() {return m_desktop;}
 	virtual void SetNewSWSize(long w,long h,BOOL desktop);
-	virtual void SetNewSWSizeFR(long w,long h,BOOL desktop);
 	virtual void SetBufferOffset(int x,int y);
-	virtual void SetScreenOffset(int x,int y,int type); //never locked
+	virtual void SetScreenOffset(int x,int y, bool single_display); //never locked
 	virtual void InitialUpdate(bool value);
 	virtual void AutoCapt(int autocapt);
 	virtual int AutoCapt() { return m_autocapt; }
@@ -212,6 +213,8 @@ public:
 	virtual BOOL PollOnEventOnly() {return m_poll_oneventonly;};
 	virtual void MaxCpu(LONG maxcpu) {m_MaxCpu = maxcpu;};
 	virtual LONG MaxCpu() {return m_MaxCpu;};
+	virtual void MaxFPS(LONG maxFPS) { m_MaxFPS = maxFPS; };
+	virtual LONG MaxFPS() { return m_MaxFPS; };
 
 	// Client manipulation of the clipboard
 	virtual void UpdateLocalClipText(LPSTR text);
@@ -496,6 +499,8 @@ public:
 
 	bool OS_Shutdown;
 	void StopReconnectAll();
+	int m_virtualDisplaySupported;
+	VirtualDisplay *virtualDisplay;
 
 protected:
 	// The vncServer UpdateTracker class
@@ -574,6 +579,7 @@ protected:
 
 	BOOL				m_poll_oneventonly;
 	LONG				m_MaxCpu;
+	LONG				m_MaxFPS;
 	BOOL				m_poll_consoleonly;
 
 	BOOL				m_deskDupEngine;
@@ -628,7 +634,6 @@ protected:
 #ifdef DSM_SUPPORT
 	// sf@2002 - DSMPlugin
 	BOOL m_fDSMPluginEnabled;
-	BOOL m_NatPluginEnabled;
 	char m_szDSMPlugin[128];
 	CDSMPlugin *m_pDSMPlugin;
 	//adzm 2010-05-12 - dsmplugin config
@@ -666,7 +671,7 @@ protected:
 	bool clearconsole;
 	DWORD startTime;
     BOOL m_fSendExtraMouse;
-	bool KillAuthClientsBuzy;
+	bool KillAuthClientsBuzy;	
 };
 
 #endif
