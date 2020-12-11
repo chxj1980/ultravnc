@@ -59,7 +59,7 @@ public:
 
 	// Routines to establish which OS we're running on
 	static BOOL IsWin95();
-	static BOOL IsWinNT();
+	static BOOL IsWinNT() { return TRUE; }
 	static DWORD VersionMajor();
 	static DWORD VersionMinor();
 

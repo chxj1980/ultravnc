@@ -374,6 +374,7 @@ vncService::CurrentUser(char *buffer, UINT size)
 #endif
 
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 BOOL vncService::IsWSLocked()
 {
 	if (!IsWinNT()) 
@@ -442,7 +443,6 @@ vncService::VersionMinor()
 	return g_version_minor;
 }
 
-#ifndef ULTRAVNC_VEYON_SUPPORT
 //adzm 2010-02-10 - Finds the appropriate VNC window
 HWND
 FindWinVNCWindow(bool bThisProcess)
