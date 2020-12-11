@@ -122,6 +122,7 @@ PixelCaptureEngine::PixelCaptureEngineInit(HDC rootdc, HDC memdc, HBITMAP membit
 	m_ScreenOffsety = offsety;
 }
 
+#ifndef ULTRAVNC_VEYON_SUPPORT
 //SImulate high load biblt
 void Highcpu(long counter)
 {
@@ -134,6 +135,7 @@ void Highcpu(long counter)
 	}
 
 }
+#endif
 
 bool
 PixelCaptureEngine::CaptureRect(const rfb::Rect& rect)
@@ -739,7 +741,7 @@ vncDesktop::Startup()
 				no_default_desktop = false;
 			}
 			else {
-				vnclog.Print(LL_INTINFO, VNCLOG("no default desktop \n"));
+				vnclog.Print(LL_INTINFO, VNCLOG("no default desktop: %s\n"), new_name);
 				no_default_desktop = true;
 			}
 		}
