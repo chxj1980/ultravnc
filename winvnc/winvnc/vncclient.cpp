@@ -534,6 +534,7 @@ vncClientUpdateThread::run_undetached(void *arg)
 					rsfb.desktop_h = Swap16IfLE(ScreenSize.br.y);
 					rsfb.buffer_w = Swap16IfLE(ViewerSize.br.x);
 					rsfb.buffer_h = Swap16IfLE(ViewerSize.br.y);
+					omni_mutex_lock l(m_client->GetUpdateLock(), 82);
 					m_client->m_socket->SendExact((char*)&rsfb,
 													sz_rfbPalmVNCReSizeFrameBufferMsg,
 													rfbPalmVNCReSizeFrameBuffer);
@@ -544,6 +545,7 @@ vncClientUpdateThread::run_undetached(void *arg)
 					rsmsg.type = rfbResizeFrameBuffer;
 					rsmsg.framebufferWidth  = Swap16IfLE(ViewerSize.br.x);
 					rsmsg.framebufferHeigth = Swap16IfLE(ViewerSize.br.y);
+					omni_mutex_lock l(m_client->GetUpdateLock(), 82);
 					m_client->m_socket->SendExact((char*)&rsmsg,
 													sz_rfbResizeFrameBufferMsg,
 													rfbResizeFrameBuffer);
@@ -598,7 +600,7 @@ vncClientUpdateThread::run_undetached(void *arg)
 			if (true) {
 #endif
 				bool bShouldFlush = false;
-
+				omni_mutex_lock l(m_client->GetUpdateLock(), 82);
 				// adzm - 2010-07 - Extended clipboard
 				// send any clipboard data that should be sent automatically
 				if (m_client->m_clipboard.m_bNeedToProvide) {
@@ -2909,24 +2911,29 @@ vncClientThread::run(void *arg)
 					}
 #endif
 
+#ifdef _Gii
+					if (Swap32IfLE(encoding) == rfbEncodingGII) {
+						vnclog.Print(LL_INTINFO, VNCLOG("Gii Encoding found\n"));
+						gii_set = TRUE;
+						continue;
+					}
+#endif
+
 					// RDV - We try to detect which type of viewer tries to connect
 					if (Swap32IfLE(encoding) == rfbEncodingZRLE) {
 						m_client->m_encodemgr.AvailableZRLE(TRUE);
 						vnclog.Print(LL_INTINFO, VNCLOG("ZRLE found \n"));
-						// continue;
 					}
 #ifdef _XZ
 					if (Swap32IfLE(encoding) == rfbEncodingXZ) {
 						m_client->m_encodemgr.AvailableXZ(TRUE);
 						vnclog.Print(LL_INTINFO, VNCLOG("XZ found \n"));
-						// continue;
 					}
 #endif
 
 					if (Swap32IfLE(encoding) == rfbEncodingTight) {
 						m_client->m_encodemgr.AvailableTight(TRUE);
 						vnclog.Print(LL_INTINFO, VNCLOG("Tight found\n"));
-						// continue;
 					}
 
 					// Have we already found a suitable encoding?
@@ -2937,13 +2944,6 @@ vncClientThread::run(void *arg)
 						if (m_client->m_encodemgr.SetEncoding(Swap32IfLE(encoding),FALSE))
 							encoding_set = TRUE;
 					}
-#ifdef _Gii
-					if (Swap32IfLE(encoding) == rfbEncodingGII) {
-						vnclog.Print(LL_INTINFO, VNCLOG("Gii Encoding found\n"));
-						gii_set = TRUE;
-						// continue;
-					}
-#endif
 				}
 				// If no encoding worked then default to RAW!
 				if (!encoding_set)
