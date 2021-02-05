@@ -20,6 +20,8 @@
 // which you received this file, check 
 // http://www.uvnc.com
 
+#pragma once
+
 typedef struct _AUTH_SEQ {
    BOOL fInitialized;
    BOOL fHaveCredHandle;
