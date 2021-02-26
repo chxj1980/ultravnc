@@ -314,7 +314,7 @@ private:
 	int initialupdate_counter;
 	void ReadScreenUpdate();
 	void Update(RECT *pRect);
-	void SizeWindow(bool reconnect = false);
+	void SizeWindow(bool reconnect = false, bool SizeMultimon = true);
 	bool ScrollScreen(int dx, int dy, bool absolute = false);
 	void UpdateScrollbars();
     
@@ -824,7 +824,7 @@ private:
 	jpeg_source_mgr m_jpegSrcManager;
 	bool desktopsize_requested;
 	int ShowToolbar;
-
+	bool ExtDesktop;
 
 public:
 	// RFB settings
@@ -839,6 +839,9 @@ public:
 	void ReadExact(char *buf, int bytes);
 	bool new_ultra_server;
 	void Save_Latest_Connection();	
+	bool tbWM_Set;
+	RECT tbWM_rect;
+
 };
 
 // Some handy classes for temporary GDI object selection

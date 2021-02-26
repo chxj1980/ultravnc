@@ -583,6 +583,8 @@ void ClientConnection::Init(VNCviewerApp *pApp)
 	ultraVncZlib = new UltraVncZ();
 	desktopsize_requested = true;
 	ShowToolbar = -1;
+	ExtDesktop = false;
+	tbWM_Set = false;
 }
 
 // helper functions for setting socket timeouts during file transfer
@@ -657,7 +659,7 @@ void ClientConnection::Run()
 	WatchClipboard();
 
 	Createdib();
-	SizeWindow();
+	SizeWindow(false, false);
 
 	// This starts the worker thread.
 	// The rest of the processing continues in run_undetached.
@@ -1496,7 +1498,7 @@ void ClientConnection::CreateDisplay()
 
 	//Added by: Lars Werner (http://lars.werner.no)
 	if(TitleBar.GetSafeHwnd()==NULL)
-		TitleBar.Create(m_pApp->m_instance, m_hwndMain, !m_opts.m_Directx);
+		TitleBar.Create(m_pApp->m_instance, m_hwndMain, !m_opts.m_Directx, &m_opts);
 }
 
 // adzm - 2010-07 - Fix clipboard hangs
@@ -3643,10 +3645,10 @@ void ClientConnection::ReadServerInit(bool reconnect)
 
 	if (m_opts.m_ViewOnly) SetWindowText(m_hwndMain, m_desktopName_viewonly);
 	else SetWindowText(m_hwndMain, m_desktopName);
-	SizeWindow(reconnect);
+	SizeWindow(reconnect, false);
 }
 
-void ClientConnection::SizeWindow(bool reconnect)
+void ClientConnection::SizeWindow(bool reconnect, bool SizeMultimon)
 {
 	int uni_screenWidth = extSDisplay ? widthExtSDisplay : m_si.framebufferWidth;
 	int uni_screenHeight = extSDisplay ? heightExtSDisplay : m_si.framebufferHeight;
@@ -3657,7 +3659,7 @@ void ClientConnection::SizeWindow(bool reconnect)
 	RECT workrect;
 	tempdisplayclass tdc;
 	tdc.Init();
-	int mon = tdc.getSelectedScreen(m_hwndMain, m_opts.m_allowMonitorSpanning && !m_opts.m_showExtend);	
+	int mon = tdc.getSelectedScreen(m_hwndMain, (m_opts.m_allowMonitorSpanning || SizeMultimon) && !m_opts.m_showExtend);
 	workrect.left=tdc.monarray[mon].wl;
 	workrect.right=tdc.monarray[mon].wr;
 	workrect.top=tdc.monarray[mon].wt;
@@ -3756,8 +3758,6 @@ void ClientConnection::SizeWindow(bool reconnect)
 		m_winheight = min(m_fullwinheight + m_TBr.bottom + m_TBr.top , workheight);
 	else
 		m_winheight = min(m_fullwinheight, workheight);
-	int aa=GetSystemMetrics(SM_CXBORDER)+GetSystemMetrics(SM_CXHSCROLL);
-	int bb = tdc.monarray[1].wr - tdc.monarray[1].wl + aa;
 	int temp_x = 0;
 	int temp_y = 0;
 	int temp_w = 0;
@@ -3811,11 +3811,12 @@ void ClientConnection::SizeWindow(bool reconnect)
     //called by SetWindowPos
     int act_width = m_winwidth;
     int act_height = m_winheight;
-	if (m_opts.m_allowMonitorSpanning && !m_opts.m_showExtend && (m_fullwinwidth <= bb )) //fit on primary
-		// -20 for border
+
+	if (m_opts.m_allowMonitorSpanning && !m_opts.m_showExtend && (m_fullwinwidth <= tdc.monarray[1].wr - tdc.monarray[1].wl + GetSystemMetrics(SM_CXBORDER) + GetSystemMetrics(SM_CXHSCROLL))) //fit on primary -20 for border
 	{
-		if (pos_set == false) SetWindowPos(m_hwndMain, HWND_TOP,tdc.monarray[1].wl + ((tdc.monarray[1].wr-tdc.monarray[1].wl)-m_winwidth) / 2,tdc.monarray[1].wt +
-			((tdc.monarray[1].wb - tdc.monarray[1].wt) - m_winheight) / 2, m_winwidth, m_winheight, SWP_SHOWWINDOW | SWP_NOSIZE);
+		if (pos_set == false) 
+			SetWindowPos(m_hwndMain, HWND_TOP,tdc.monarray[1].wl + ((tdc.monarray[1].wr-tdc.monarray[1].wl)-m_winwidth) / 2,tdc.monarray[1].wt +
+					((tdc.monarray[1].wb - tdc.monarray[1].wt) - m_winheight) / 2, m_winwidth, m_winheight, SWP_SHOWWINDOW | SWP_NOSIZE);
         if (size_set == false)
         {
             m_winwidth = act_width;
@@ -3827,7 +3828,8 @@ void ClientConnection::SizeWindow(bool reconnect)
 	else
 	{
         
-		if (pos_set == false) SetWindowPos(m_hwndMain, HWND_TOP, workrect.left + (workwidth - m_winwidth) / 2, workrect.top + (workheight - m_winheight) / 2, m_winwidth, m_winheight, SWP_SHOWWINDOW | SWP_NOSIZE);
+		if (pos_set == false) 
+			SetWindowPos(m_hwndMain, HWND_TOP, workrect.left + (workwidth - m_winwidth) / 2, workrect.top + (workheight - m_winheight) / 2, m_winwidth, m_winheight, SWP_SHOWWINDOW | SWP_NOSIZE);
         if (size_set == false)
         {
             m_winwidth = act_width;
@@ -5077,9 +5079,9 @@ void* ClientConnection::run_undetached(void* arg) {
 	//adzm 2010-09 - all socket writes must remain on a single thread
 	SendFullFramebufferUpdateRequest(false);
 
-	SizeWindow();
+	SizeWindow(false, false);
 	RealiseFullScreenMode();
-	if (!InFullScreenMode()) SizeWindow();
+	if (!InFullScreenMode()) SizeWindow(false, false);
 
 	m_running = true;
 	UpdateWindow(m_hwndcn);
@@ -5332,7 +5334,10 @@ void ClientConnection::Internal_SendFramebufferUpdateRequest(int x, int y, int w
 	if (m_pTextChat->m_fTextChatRunning && m_pTextChat->m_fVisible) return;
     rfbFramebufferUpdateRequestMsg fur;
     fur.type = rfbFramebufferUpdateRequest;
-    fur.incremental = incremental ? 1 : 0;
+	if (new_ultra_server)
+		fur.incremental = incremental ? 1 : 0;
+	else
+		fur.incremental = (incremental || ExtDesktop) ? 1 : 0;
     fur.x = Swap16IfLE(x);
     fur.y = Swap16IfLE(y);
     fur.w = Swap16IfLE(w);
@@ -5587,6 +5592,7 @@ inline void ClientConnection::ReadScreenUpdate()
 
 		if (surh.encoding == rfbEncodingExtDesktopSize)
 		{
+			ExtDesktop = true;
 			rfbExtDesktopSizeMsg edsHdr;
 			ReadExact((char*)&edsHdr, sz_rfbExtDesktopSizeMsg);
 			rfbExtDesktopScreen eds;
@@ -6123,7 +6129,7 @@ void ClientConnection::ReadServerCutText()
 			case clipCaps:
 				{
 					omni_mutex_lock l(m_clipMutex);
-					m_clipboard.settings.HandleCapsPacket(extendedClipboardDataMessage, false);
+					m_clipboard.settings.HandleCapsPacket(extendedClipboardDataMessage, true);
 
 					//adzm 2010-09
 					//UpdateRemoteClipboardCaps();
@@ -6156,7 +6162,16 @@ void ClientConnection::ReadServerCutText()
 				}
 				break;
 			case clipRequest:
-				// no need for server to request anything at the moment.
+				{
+					ClipboardData clipboardData;
+
+					// only need an owner window when setting clipboard data -- by using NULL we can rely on fewer locks
+					if (clipboardData.Load(NULL)) {
+						omni_mutex_lock l(m_clipMutex);
+						m_clipboard.UpdateClipTextEx(clipboardData, extendedClipboardDataMessage.GetFlags());
+						PostMessage(m_hwndcn, WM_UPDATEREMOTECLIPBOARD, extendedClipboardDataMessage.GetFlags(), NULL);						
+					}
+				}
 				break;
 			case clipPeek:		// irrelevant coming from server
 			default:
@@ -7626,6 +7641,11 @@ LRESULT CALLBACK ClientConnection::WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, 
 					case SC_RESTORE:
 						_this->SetDormant(false);
 						if (_this->m_hwndStatus)ShowWindow(_this->m_hwndStatus,SW_NORMAL);
+						ShowWindow(_this->m_hwndMain, SW_NORMAL);
+						if (_this->tbWM_Set == true) {
+							_this->tbWM_Set = false;
+							SetWindowPos(_this->m_hwndMain, NULL, _this->tbWM_rect.left, _this->tbWM_rect.top, _this->tbWM_rect.right- _this->tbWM_rect.left, _this->tbWM_rect.bottom- _this->tbWM_rect.top, SWP_NOZORDER | SWP_NOSENDCHANGING);
+						}
 						break;
 
 					case ID_NEWCONN:
@@ -8626,6 +8646,8 @@ LRESULT CALLBACK ClientConnection::WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, 
 
 				case tbWM_MINIMIZE:
 					_this->SetDormant(true);
+					_this->tbWM_Set = true;;
+					GetWindowRect(_this->m_hwndMain, &_this->tbWM_rect);
 					ShowWindow(_this->m_hwndMain, SW_MINIMIZE);
 					return 0;
 
@@ -8926,6 +8948,9 @@ LRESULT CALLBACK ClientConnection::WndProchwnd(HWND hwnd, UINT iMsg, WPARAM wPar
 			case WM_UPDATEREMOTECLIPBOARDCAPS:
 				//adzm 2010-09
 				_this->UpdateRemoteClipboardCaps();
+				return 0;
+			case WM_UPDATEREMOTECLIPBOARD:
+				_this->UpdateRemoteClipboard(wParam);
 				return 0;
 
 			case WM_NOTIFYPLUGINSTREAMING:

@@ -60,7 +60,7 @@ void ClientConnection::SetFullScreenMode(bool enable)
 		m_opts.m_ShowToolbar = 0;		
 		if (!m_opts.m_SavePos)
 			saveScreenPosition();
-		SizeWindow();
+		SizeWindow(enable);
 		m_opts.m_FullScreen = enable;
 		RealiseFullScreenMode();
 	}
@@ -94,6 +94,7 @@ void ClientConnection::RealiseFullScreenMode()
 		m_FullScreen = m_opts.m_FullScreen;
 		m_fScalingDone = false;
 	}
+	HMONITOR hMonitor = ::MonitorFromWindow(m_hwndMain, MONITOR_DEFAULTTONEAREST);
 
 	LONG style = GetWindowLong(m_hwndMain, GWL_STYLE);
 	if (m_opts.m_FullScreen) {		
@@ -103,7 +104,8 @@ void ClientConnection::RealiseFullScreenMode()
 		SetWindowLong(m_hwndMain, GWL_STYLE, style);
 
         // 7 May 2008 jdp
-        HMONITOR hMonitor = ::MonitorFromWindow(m_hwndMain, MONITOR_DEFAULTTOPRIMARY);
+		RECT rect;
+		GetWindowRect(m_hwndMain, &rect);
         MONITORINFO mi;
         mi.cbSize = sizeof (MONITORINFO);
 
@@ -115,7 +117,7 @@ void ClientConnection::RealiseFullScreenMode()
 
 		// when the remote size is bigger then 1,5 time the localscreen we use all monitors in
 		// fullscreen mode
-		if ((m_si.framebufferWidth > cx * 1.5 || m_si.framebufferHeight > cy * 1.5) && m_opts.m_allowMonitorSpanning && !m_opts.m_showExtend){
+		if (m_opts.m_allowMonitorSpanning && !m_opts.m_showExtend){
 			tempdisplayclass tdc;
 			tdc.Init();
 			x = 0;
